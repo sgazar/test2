@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Time to Line — Navigation Calculator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap');
+  :root {
+    --bg:#f0f4f8; --panel:#ffffff; --border:#cdd8e3;
+    --accent:#0077aa; --accent2:#e05a00; --warn:#b07800;
+    --green:#1a8a3a; --text:#1a2633; --text-dim:#6b8099;
+    --red:#cc1122; --grid:rgba(0,100,180,0.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-weight:300;height:100dvh;overflow:hidden;display:flex;flex-direction:column;}
+  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.01) 2px,rgba(0,0,0,0.01) 4px);pointer-events:none;z-index:999;}
+
+  header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);background:rgba(0,119,170,0.04);flex-shrink:0;}
+  .logo{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:3px;color:var(--accent);text-transform:uppercase;}
+  .logo span{color:var(--text-dim);}
+  #gpsStatus{margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:10px;display:flex;align-items:center;gap:6px;}
+  .gps-dot{width:9px;height:9px;border-radius:50%;background:var(--text-dim);transition:background .3s;}
+  .gps-dot.active{background:var(--green);box-shadow:0 0 7px var(--green);}
+  .gps-dot.error{background:var(--red);box-shadow:0 0 7px var(--red);}
+
+  .layout{display:grid;grid-template-columns:340px 1fr;flex:1;min-height:0;}
+  @media(max-width:700px){.layout{grid-template-columns:1fr;grid-template-rows:55vh 1fr;}}
+
+  .sidebar{border-right:1px solid var(--border);overflow-y:auto;padding:12px 12px 20px;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch;}
+  .section-label{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--accent);text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:8px;}
+  .section-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent);}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:11px;}
+  .field{margin-bottom:9px;}.field:last-child{margin-bottom:0;}
+  label{display:block;font-size:10px;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;}
+
+  .gps-row{display:flex;align-items:center;gap:7px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:6px 9px;}
+  .gps-row .coord{flex:1;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gps-row .coord.unset{color:var(--text-dim);}
+
+  .set-btn{flex-shrink:0;padding:7px 13px;background:transparent;border:1px solid var(--accent);color:var(--accent);font-family:'Barlow',sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+  .set-btn:active{background:rgba(0,212,255,0.15);}
+  .set-btn.b{border-color:var(--accent2);color:var(--accent2);}
+  .set-btn.b:active{background:rgba(255,107,53,0.15);}
+  .set-btn.wind{border-color:var(--warn);color:var(--warn);}
+  .set-btn.wind:active{background:rgba(255,204,0,0.15);}
+
+  .range-row{display:flex;align-items:center;gap:9px;}
+  input[type=range]{flex:1;-webkit-appearance:none;height:4px;background:var(--border);border-radius:2px;outline:none;touch-action:pan-y;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;background:var(--accent);border-radius:50%;cursor:pointer;box-shadow:0 2px 6px rgba(0,119,170,0.35);}
+  .range-val{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--accent);min-width:54px;text-align:right;}
+
+  .hint{font-size:10px;color:var(--text-dim);margin-top:6px;line-height:1.5;}
+
+  .wind-badge{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:7px 9px;margin-bottom:8px;}
+
+  .result-card{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:13px;position:relative;overflow:hidden;}
+  .result-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scan 3s linear infinite;}
+  @keyframes scan{0%{opacity:.3}50%{opacity:1}100%{opacity:.3}}
+  .result-main{font-family:'Share Tech Mono',monospace;font-size:32px;color:var(--green);text-shadow:0 0 18px rgba(57,255,126,.4);line-height:1;margin-bottom:4px;}
+  .result-main.warn{color:var(--warn);text-shadow:0 0 18px rgba(255,204,0,.4);}
+  .result-main.danger{color:var(--accent2);text-shadow:0 0 18px rgba(255,107,53,.4);}
+  .result-sub{font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase;margin-bottom:11px;}
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .metric{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:6px 8px;}
+  .metric-val{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--text);}
+  .metric-lbl{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+
+  #deltaWrap{margin-bottom:11px;display:none;}
+
+  .btn{width:100%;padding:11px;background:transparent;border:1px solid var(--accent);color:var(--accent);font-family:'Barlow',sans-serif;font-size:12px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+  .btn:active{background:rgba(0,212,255,.12);}
+
+  .canvas-wrap{position:relative;background:var(--bg);overflow:hidden;}
+  .canvas-wrap::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;}
+  canvas{display:block;width:100%;height:100%;cursor:crosshair;}
+  .canvas-info{position:absolute;bottom:12px;left:14px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);line-height:1.8;}
+  .canvas-info b{color:var(--accent);}
+  .drag-hint{position:absolute;top:12px;right:14px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);text-align:right;line-height:1.8;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">NAV<span>/</span>INTERCEPT <span style="color:var(--border)">|</span> GPS Mode</div>
+  <div id="gpsStatus">
+    <div class="gps-dot" id="gpsDot"></div>
+    <span id="gpsText" style="color:var(--text-dim)">GPS off</span>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="sidebar">
+
+    <!-- Live Object -->
+    <div>
+      <div class="section-label">Live Object (GPS)</div>
+      <div class="card">
+        <div class="field">
+          <label>Current Position</label>
+          <div class="gps-row">
+            <span class="coord unset" id="objGpsDisp">Not acquired</span>
+            <button class="set-btn" id="startGpsBtn">Enable GPS</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Speed (knots) — live</label>
+          <div class="gps-row">
+            <span class="coord unset" id="objSpdDisp">—</span>
+            <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:1px">AUTO</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Heading (°) — live</label>
+          <div class="gps-row">
+            <span class="coord unset" id="objHdgDisp">—</span>
+            <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:1px">AUTO</span>
+          </div>
+        </div>
+        <div class="hint">Updates every second. Speed &amp; heading auto-computed from movement if not provided by device.</div>
+      </div>
+    </div>
+
+    <!-- Line Points -->
+    <div>
+      <div class="section-label">Intercept Line A–B</div>
+      <div class="card">
+        <div class="field">
+          <label>Point A (GPS)</label>
+          <div class="gps-row">
+            <span class="coord unset" id="ptADisp">Not set</span>
+            <button class="set-btn" id="setABtn">Set A</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Point B — origin (GPS)</label>
+          <div class="gps-row">
+            <span class="coord unset" id="ptBDisp">Not set</span>
+            <button class="set-btn b" id="setBBtn">Set B</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Line display length (m)</label>
+          <div class="range-row">
+            <input type="range" id="lineLen" min="50" max="3000" value="300" step="10">
+            <span class="range-val" id="lineLenVal">300 m</span>
+          </div>
+        </div>
+        <div class="hint">Walk to each end of the line and press Set. B becomes the origin on the canvas.</div>
+      </div>
+    </div>
+
+    <!-- Manual fallback -->
+    <div>
+      <div class="section-label">Manual / Simulation</div>
+      <div class="card">
+        <div class="field">
+          <label>Approach heading (°) — line perpendicular</label>
+          <div class="range-row">
+            <input type="range" id="lineHeading" min="0" max="359" value="0" step="1">
+            <span class="range-val" id="lineHeadingVal">0°</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Object speed override (kts)</label>
+          <div class="range-row">
+            <input type="range" id="speedManual" min="0.1" max="30" value="6" step="0.1">
+            <span class="range-val" id="speedManualVal">6.0 kts</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Object heading override (°)</label>
+          <div class="range-row">
+            <input type="range" id="headingManual" min="0" max="359" value="45" step="1">
+            <span class="range-val" id="headingManualVal">45°</span>
+          </div>
+        </div>
+        <div class="hint">Used when GPS unavailable or for simulation. GPS values take priority when active.</div>
+      </div>
+    </div>
+
+    <!-- Wind -->
+    <div>
+      <div class="section-label">Wind</div>
+      <div class="card">
+        <div class="wind-badge">
+          <svg width="38" height="38" viewBox="0 0 38 38" style="flex-shrink:0">
+            <circle cx="19" cy="19" r="17" fill="none" stroke="var(--border)" stroke-width="1.5"/>
+            <text x="19" y="7"  text-anchor="middle" fill="var(--text-dim)" font-size="6" font-family="Share Tech Mono,monospace">N</text>
+            <text x="19" y="34" text-anchor="middle" fill="var(--text-dim)" font-size="6" font-family="Share Tech Mono,monospace">S</text>
+            <text x="5"  y="21" text-anchor="middle" fill="var(--text-dim)" font-size="6" font-family="Share Tech Mono,monospace">W</text>
+            <text x="33" y="21" text-anchor="middle" fill="var(--text-dim)" font-size="6" font-family="Share Tech Mono,monospace">E</text>
+            <line id="windArrowSvg" x1="19" y1="19" x2="19" y2="5" stroke="var(--warn)" stroke-width="2.5" stroke-linecap="round"/>
+            <polygon id="windArrowHead" points="19,5 16,11 22,11" fill="var(--warn)" opacity="0.8"/>
+          </svg>
+          <div style="flex:1">
+            <div id="windDirText" style="font-family:'Share Tech Mono',monospace;font-size:16px;color:var(--warn)">0°</div>
+            <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-top:2px">Wind FROM</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Wind direction — FROM (°)</label>
+          <div class="range-row">
+            <input type="range" id="windDir" min="0" max="359" value="0" step="1">
+            <span class="range-val" id="windDirVal">0°</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Wind speed (knots)</label>
+          <div class="range-row">
+            <input type="range" id="windSpeed" min="0" max="40" value="10" step="0.5">
+            <span class="range-val" id="windSpeedVal">10.0 kts</span>
+          </div>
+        </div>
+        <div class="hint" id="windHint">Set direction wind blows <span style="color:var(--warn)">FROM</span> (0° = wind from North blowing South).</div>
+      </div>
+    </div>
+
+    <!-- Scheduled -->
+    <div>
+      <div class="section-label">Scheduled Arrival</div>
+      <div class="card">
+        <div class="field">
+          <label>Time at line (seconds)</label>
+          <div class="range-row">
+            <input type="range" id="schedTime" min="0" max="600" value="60" step="1">
+            <span class="range-val" id="schedTimeVal">60s</span>
+          </div>
+        </div>
+        <div class="hint">Delta = <span style="color:var(--green)">(+) early</span> or <span style="color:var(--accent2)">(−) late</span>.</div>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div>
+      <div class="section-label">Result</div>
+      <div class="result-card">
+        <div class="result-main" id="resultTime">—</div>
+        <div class="result-sub" id="resultLabel">Enable GPS or set points</div>
+
+        <div id="deltaWrap">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+            <div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase">Arrival Delta</div>
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px">
+            <div class="result-main" id="deltaVal" style="font-size:26px">—</div>
+            <div>
+              <div id="deltaStatus" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim)">—</div>
+              <div style="font-size:10px;color:var(--text-dim);margin-top:2px">vs <span id="schedDisp" style="color:var(--warn)">—</span></div>
+            </div>
+          </div>
+          <div style="height:4px;border-radius:2px;background:var(--border);overflow:hidden">
+            <div id="deltaBarFill" style="height:100%;width:4px;background:var(--green);transition:all .2s;border-radius:2px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:3px">
+            <span style="font-size:9px;color:var(--accent2)">LATE</span>
+            <span style="font-size:9px;color:var(--text-dim)">ON TIME</span>
+            <span style="font-size:9px;color:var(--green)">EARLY</span>
+          </div>
+        </div>
+
+        <div id="windResult" style="margin-top:9px;display:none;padding:7px;background:rgba(255,204,0,0.05);border:1px solid rgba(255,204,0,0.2);border-radius:3px">
+          <div style="font-size:9px;letter-spacing:2px;color:var(--warn);text-transform:uppercase;margin-bottom:4px">Wind Adjusted</div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span id="windAdjTime" style="font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--warn)">—</span>
+            <span id="windDeltaText" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim)">—</span>
+          </div>
+        </div>
+
+        <div class="metrics" style="margin-top:9px">
+          <div class="metric"><div class="metric-val" id="mDist">—</div><div class="metric-lbl">Perp. Distance</div></div>
+          <div class="metric"><div class="metric-val" id="mVperp">—</div><div class="metric-lbl">v⊥ to line</div></div>
+          <div class="metric"><div class="metric-val" id="mAngle">—</div><div class="metric-lbl">Intercept angle</div></div>
+          <div class="metric"><div class="metric-val" id="mDirect">—</div><div class="metric-lbl">Direct dist.</div></div>
+          <div class="metric" style="grid-column:span 2"><div class="metric-val" id="mIx">—</div><div class="metric-lbl">Intercept point (m from B)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn" id="animBtn">▶ Animate</button>
+
+  </div><!-- /sidebar -->
+
+  <!-- CANVAS -->
+  <div class="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div class="canvas-info"><b>B</b> = origin (0,0 m)<br><span id="coordInfo">—</span></div>
+    <div class="drag-hint">Drag 🟠 obj · pinch to zoom<br>B fixed at origin</div>
+  </div>
+</div>
+
+<script>
+/* ── Constants ── */
+const KNOTS_TO_MS = 0.514444, MS_TO_KNOTS = 1/0.514444;
+const D2R = d => d*Math.PI/180;
+const METERS_PER_DEG_LAT = 111320;
+
+/* ── GPS state ── */
+const gps = { active:false, watchId:null, lat:null, lon:null, speed_ms:null, heading:null, accuracy:null, prevLat:null, prevLon:null, prevTime:null, compHeading:null, compSpeed:null };
+
+/* ── Fixed points (GPS) ── */
+const pts = { aLat:null, aLon:null, bLat:null, bLon:null };
+
+/* ── Wind ── */
+const wind = { dir:null, speed_kts:10 };
+
+/* ── Manual / sim fallback ── */
+const manual = { lineHeading:0, speed_kts:6, heading:45 };
+
+/* ── Canvas state (metres, B-centred) ── */
+const cv = { ox:-200, oy:-200, speed_ms:3, heading:45, ax:300, ay:0, bx:0, by:0, zoom:0.8, panX:0, panY:0, animating:false, animT:0, animOx:0, animOy:0 };
+let schedTime = 60;
+
+/* ── GPS → metres projection ── */
+function gpsToM(lat, lon, refLat) {
+  return { x: lon*Math.cos(D2R(refLat))*METERS_PER_DEG_LAT, y: lat*METERS_PER_DEG_LAT };
+}
+
+/* ── Sync canvas state from GPS / manual ── */
+function syncCanvas() {
+  const lineLen = parseFloat(document.getElementById('lineLen').value);
+
+  if (pts.bLat !== null && pts.aLat !== null) {
+    const bm = gpsToM(pts.bLat, pts.bLon, pts.bLat);
+    const am = gpsToM(pts.aLat, pts.aLon, pts.bLat);
+    let dx = am.x - bm.x, dy = am.y - bm.y;
+    const len = Math.hypot(dx, dy);
+    if (len > 0.1) { dx = dx/len*lineLen; dy = dy/len*lineLen; }
+    cv.ax = dx; cv.ay = dy; cv.bx = 0; cv.by = 0;
+  } else {
+    const h = D2R(manual.lineHeading);
+    cv.ax = Math.cos(h)*lineLen; cv.ay = -Math.sin(h)*lineLen;
+    cv.bx = 0; cv.by = 0;
+  }
+
+  if (pts.bLat !== null && gps.lat !== null) {
+    const bm = gpsToM(pts.bLat, pts.bLon, pts.bLat);
+    const om = gpsToM(gps.lat, gps.lon, pts.bLat);
+    cv.ox = om.x - bm.x; cv.oy = om.y - bm.y;
+  }
+
+  cv.speed_ms = gps.active
+    ? ((gps.speed_ms !== null ? gps.speed_ms : (gps.compSpeed || manual.speed_kts*KNOTS_TO_MS)))
+    : manual.speed_kts*KNOTS_TO_MS;
+  cv.speed_ms = Math.max(cv.speed_ms, 0.01);
+
+  cv.heading = gps.active
+    ? (gps.heading !== null ? gps.heading : (gps.compHeading !== null ? gps.compHeading : manual.heading))
+    : manual.heading;
+}
+
+/* ── Intercept math ── */
+function calcIntercept() {
+  const {ox,oy,speed_ms,heading,ax,ay,bx,by} = cv;
+  const dx=bx-ax, dy=by-ay, len=Math.hypot(dx,dy);
+  if (len<0.01) return null;
+  const nx=-dy/len, ny=dx/len;
+  const dist = nx*(ox-ax)+ny*(oy-ay);
+  const vx=speed_ms*Math.sin(D2R(heading)), vy=speed_ms*Math.cos(D2R(heading));
+  const vPerp=-(nx*vx+ny*vy);
+  if (Math.abs(vPerp)<0.001) return {parallel:true, dist:Math.abs(dist)};
+  const t=dist/vPerp;
+  const ix=ox+vx*t, iy=oy+vy*t;
+  const lineAngle=Math.atan2(dx,dy)*180/Math.PI;
+  let iAngle=Math.abs(heading-lineAngle)%180;
+  if (iAngle>90) iAngle=180-iAngle;
+  const directDist=Math.hypot(ix-ox,iy-oy);
+  let tWind=null;
+  if (wind.dir!==null) {
+    const ws=wind.speed_kts*KNOTS_TO_MS, wRad=D2R(wind.dir+180);
+    const wxv=ws*Math.sin(wRad), wyv=ws*Math.cos(wRad);
+    const wp=-(nx*wxv+ny*wyv), tp=vPerp+wp;
+    if (Math.abs(tp)>0.001) { const tw=dist/tp; tWind=tw>0?tw:null; }
+  }
+  return {t, dist:Math.abs(dist), vPerp, ix, iy, intercAngle:iAngle, moving_away:t<0, vx, vy, directDist, tWind};
+}
+
+/* ── Canvas setup ── */
+const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+function mToC(mx,my){ return [canvas.width/2+(mx+cv.panX)*cv.zoom, canvas.height/2-(my+cv.panY)*cv.zoom]; }
+function cToM(cx,cy){ return [(cx-canvas.width/2)/cv.zoom-cv.panX, -(cy-canvas.height/2)/cv.zoom-cv.panY]; }
+
+/* ── Draw ── */
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  syncCanvas();
+  const r=calcIntercept();
+  const {ox,oy,speed_ms,heading,ax,ay,bx,by}=cv;
+  const vx=speed_ms*Math.sin(D2R(heading)), vy=speed_ms*Math.cos(D2R(heading));
+  const [ocx,ocy]=mToC(ox,oy), [acx,acy]=mToC(ax,ay), [bcx,bcy]=mToC(bx,by);
+
+  // Trajectory
+  ctx.save(); ctx.strokeStyle='rgba(224,90,0,.3)'; ctx.lineWidth=1; ctx.setLineDash([6,4]);
+  const extT=600/(speed_ms||1), [exCx,exCy]=mToC(ox+vx*extT,oy+vy*extT);
+  ctx.beginPath(); ctx.moveTo(ocx,ocy); ctx.lineTo(exCx,exCy); ctx.stroke(); ctx.restore();
+
+  // Infinite line extension
+  const ldx=bcx-acx, ldy=bcy-acy, llen=Math.hypot(ldx,ldy)||1;
+  ctx.save(); ctx.strokeStyle='rgba(0,119,170,.2)'; ctx.lineWidth=1; ctx.setLineDash([4,6]);
+  ctx.beginPath(); ctx.moveTo(acx-ldx*10,acy-ldy*10); ctx.lineTo(bcx+ldx*10,bcy+ldy*10); ctx.stroke(); ctx.restore();
+
+  // Intercept geometry
+  if (r&&!r.parallel&&!r.moving_away) {
+    const [icx,icy]=mToC(r.ix,r.iy);
+    ctx.save(); ctx.strokeStyle='rgba(26,138,58,.35)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(ocx,ocy); ctx.lineTo(icx,icy); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.arc(icx,icy,7,0,Math.PI*2);
+    ctx.fillStyle='rgba(26,138,58,.15)'; ctx.fill();
+    ctx.strokeStyle='#1a8a3a'; ctx.lineWidth=1.5; ctx.setLineDash([]); ctx.stroke();
+    ctx.beginPath(); ctx.arc(icx,icy,12+4*Math.sin(Date.now()/300),0,Math.PI*2);
+    ctx.strokeStyle='rgba(26,138,58,.25)'; ctx.lineWidth=1; ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.font='10px Share Tech Mono'; ctx.fillStyle='rgba(26,138,58,.85)';
+    ctx.fillText(`${r.dist.toFixed(0)} m`,(ocx+icx)/2+6,(ocy+icy)/2-6); ctx.restore();
+    // Wind arrow at intercept point
+    if (wind.dir!==null) {
+      const wRad=D2R(wind.dir+180)-Math.PI/2;
+      ctx.save(); ctx.translate(icx,icy); ctx.rotate(wRad);
+      ctx.strokeStyle='rgba(176,120,0,.7)'; ctx.lineWidth=1.5; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(28,0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(28,0); ctx.lineTo(21,-4); ctx.lineTo(21,4); ctx.closePath();
+      ctx.fillStyle='rgba(176,120,0,.7)'; ctx.fill(); ctx.restore();
+    }
+  }
+
+  // The Line
+  ctx.save(); ctx.beginPath(); ctx.moveTo(acx,acy); ctx.lineTo(bcx,bcy);
+  ctx.strokeStyle='#0077aa'; ctx.lineWidth=2.5; ctx.setLineDash([]);
+  ctx.shadowColor='none'; ctx.shadowBlur=0; ctx.stroke(); ctx.restore();
+  [[acx,acy,'A'],[bcx,bcy,'B']].forEach(([cx,cy,lbl])=>{
+    ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,8,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,119,170,.15)'; ctx.fill();
+    ctx.strokeStyle='#0077aa'; ctx.lineWidth=2; ctx.stroke();
+    ctx.font='bold 11px Share Tech Mono'; ctx.fillStyle='#0077aa';
+    ctx.fillText(lbl,cx+12,cy-8); ctx.restore();
+  });
+
+  // Heading arrow
+  ctx.save(); ctx.translate(ocx,ocy); ctx.rotate(D2R(heading)-Math.PI/2);
+  const aLen=Math.min(110*cv.zoom,150);
+  ctx.strokeStyle='#e05a00'; ctx.lineWidth=2; ctx.setLineDash([]); ctx.shadowColor='none'; ctx.shadowBlur=0;
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(aLen,0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(aLen,0); ctx.lineTo(aLen-10,-5); ctx.lineTo(aLen-10,5); ctx.closePath();
+  ctx.fillStyle='#e05a00'; ctx.fill(); ctx.restore();
+
+  // Object dot
+  ctx.save(); ctx.beginPath(); ctx.arc(ocx,ocy,10,0,Math.PI*2);
+  ctx.fillStyle='rgba(224,90,0,.18)'; ctx.fill();
+  ctx.strokeStyle='#e05a00'; ctx.lineWidth=2; ctx.shadowColor='#e05a00'; ctx.shadowBlur=6; ctx.stroke();
+  ctx.beginPath(); ctx.arc(ocx,ocy,3,0,Math.PI*2); ctx.fillStyle='#e05a00'; ctx.fill(); ctx.restore();
+  ctx.save(); ctx.font='10px Share Tech Mono'; ctx.fillStyle='rgba(180,70,0,.9)';
+  ctx.fillText(`${(speed_ms*MS_TO_KNOTS).toFixed(1)} kts  ${Math.round(heading)}°`,ocx+14,ocy-12); ctx.restore();
+
+  // Scheduled ghost
+  if (r&&!r.parallel&&!r.moving_away) {
+    const [gcx,gcy]=mToC(ox+vx*schedTime,oy+vy*schedTime);
+    ctx.save(); ctx.beginPath(); ctx.arc(gcx,gcy,8,0,Math.PI*2);
+    ctx.setLineDash([3,3]); ctx.strokeStyle='rgba(176,120,0,.7)'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.font='9px Share Tech Mono'; ctx.fillStyle='rgba(176,120,0,.75)';
+    ctx.fillText('SCHED',gcx+10,gcy+4); ctx.restore();
+    const [icx2,icy2]=mToC(r.ix,r.iy);
+    ctx.save(); ctx.setLineDash([2,4]);
+    ctx.strokeStyle=schedTime-r.t>0?'rgba(26,138,58,.3)':'rgba(224,90,0,.3)';
+    ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(icx2,icy2); ctx.lineTo(gcx,gcy); ctx.stroke(); ctx.restore();
+  }
+
+  // Animated ghost
+  if (cv.animating&&r&&!r.parallel&&!r.moving_away) {
+    const [aocx,aocy]=mToC(cv.animOx+r.vx*cv.animT,cv.animOy+r.vy*cv.animT);
+    ctx.save(); ctx.beginPath(); ctx.arc(aocx,aocy,7,0,Math.PI*2);
+    ctx.fillStyle='rgba(224,90,0,.4)'; ctx.fill();
+    ctx.strokeStyle='#b07800'; ctx.lineWidth=1.5; ctx.stroke(); ctx.restore();
+  }
+
+  // Wind compass overlay (top-left canvas)
+  if (wind.dir!==null) {
+    ctx.save(); ctx.translate(28,28);
+    ctx.beginPath(); ctx.arc(0,0,16,0,Math.PI*2);
+    ctx.strokeStyle='rgba(176,120,0,.3)'; ctx.lineWidth=1; ctx.setLineDash([]); ctx.stroke();
+    const wRad=D2R(wind.dir+180)-Math.PI/2;
+    ctx.rotate(wRad); ctx.strokeStyle='rgba(176,120,0,.85)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(13,0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(13,0); ctx.lineTo(7,-4); ctx.lineTo(7,4); ctx.closePath();
+    ctx.fillStyle='rgba(176,120,0,.85)'; ctx.fill(); ctx.restore();
+    ctx.save(); ctx.font='9px Share Tech Mono'; ctx.fillStyle='rgba(176,120,0,.75)';
+    ctx.fillText(`W ${wind.dir.toFixed(0)}° / ${wind.speed_kts.toFixed(0)} kts`,48,22); ctx.restore();
+  }
+
+  // Origin cross
+  const [ox0,oy0]=mToC(0,0);
+  ctx.save(); ctx.strokeStyle='rgba(90,122,153,.55)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(ox0-6,oy0); ctx.lineTo(ox0+6,oy0); ctx.moveTo(ox0,oy0-6); ctx.lineTo(ox0,oy0+6); ctx.stroke(); ctx.restore();
+
+  updateResult(r);
+  requestAnimationFrame(draw);
+}
+
+/* ── Result panel ── */
+function fmtAbs(s){ const a=Math.abs(s); if(a<60) return a.toFixed(1)+'s'; return `${Math.floor(a/60)}m ${(a%60).toFixed(0)}s`; }
+
+function updateResult(r) {
+  const el=document.getElementById('resultTime'), lb=document.getElementById('resultLabel');
+  const dw=document.getElementById('deltaWrap'), wr=document.getElementById('windResult');
+  document.getElementById('schedDisp').textContent=fmtAbs(schedTime);
+  const clr=()=>{ dw.style.display='none'; wr.style.display='none';
+    ['mDist','mVperp','mAngle','mDirect','mIx'].forEach(id=>document.getElementById(id).textContent='—'); };
+  if (!r){ el.textContent='—'; lb.textContent='Line too short'; clr(); return; }
+  if (r.parallel){ el.textContent='∞'; el.className='result-main warn'; lb.textContent='Parallel to line'; dw.style.display='none'; wr.style.display='none'; document.getElementById('mDist').textContent=r.dist.toFixed(1)+' m'; return; }
+  if (r.moving_away){ el.textContent='—'; el.className='result-main danger'; lb.textContent='Moving away'; document.getElementById('mDist').textContent=r.dist.toFixed(1)+' m'; document.getElementById('mVperp').textContent=r.vPerp.toFixed(2)+' m/s'; dw.style.display='none'; wr.style.display='none'; return; }
+
+  el.textContent=fmtAbs(r.t); el.className='result-main'; lb.textContent='Time to reach line';
+  document.getElementById('mDist').textContent=r.dist.toFixed(1)+' m';
+  document.getElementById('mVperp').textContent=r.vPerp.toFixed(2)+' m/s';
+  document.getElementById('mAngle').textContent=r.intercAngle.toFixed(1)+'°';
+  document.getElementById('mDirect').textContent=r.directDist.toFixed(1)+' m';
+  document.getElementById('mIx').textContent=`(${r.ix.toFixed(0)}, ${r.iy.toFixed(0)}) m`;
+
+  // Delta
+  dw.style.display='block';
+  const delta=schedTime-r.t, absDelta=Math.abs(delta);
+  const dbf=document.getElementById('deltaBarFill'), dv=document.getElementById('deltaVal'), ds=document.getElementById('deltaStatus');
+  if (absDelta<1){ dv.textContent='±0s'; dv.style.color='var(--warn)'; ds.textContent='ON TIME'; ds.style.color='var(--warn)'; dbf.style.width='4px'; dbf.style.background='var(--warn)'; dbf.style.marginLeft='calc(50% - 2px)'; }
+  else if (delta>0){ dv.textContent='+'+fmtAbs(delta); dv.style.color='var(--green)'; ds.textContent='EARLY'; ds.style.color='var(--green)'; const bw=Math.round(Math.min(delta/(schedTime||1),1)*50); dbf.style.width=bw+'%'; dbf.style.background='var(--green)'; dbf.style.marginLeft='50%'; }
+  else { dv.textContent='-'+fmtAbs(delta); dv.style.color='var(--accent2)'; ds.textContent='LATE'; ds.style.color='var(--accent2)'; const bw=Math.round(Math.min(absDelta/(schedTime||1),1)*50); dbf.style.width=bw+'%'; dbf.style.background='var(--accent2)'; dbf.style.marginLeft=`${50-bw}%`; }
+
+  // Wind adjusted
+  if (r.tWind!==null){ wr.style.display='block'; document.getElementById('windAdjTime').textContent=fmtAbs(r.tWind); const wd=r.t-r.tWind; document.getElementById('windDeltaText').textContent=(wd>0.5?'▲ helps ':(wd<-0.5?'▼ hinders ':'≈ no effect'))+(Math.abs(wd)>0.5?(wd>0?'+':'')+wd.toFixed(0)+'s':''); }
+  else wr.style.display='none';
+}
+
+/* ── GPS ── */
+function setGpsUi(state,text){
+  const dot=document.getElementById('gpsDot'), txt=document.getElementById('gpsText');
+  dot.className='gps-dot'+(state==='active'?' active':state==='error'?' error':'');
+  txt.textContent=text; txt.style.color=state==='active'?'var(--green)':state==='error'?'var(--red)':'var(--text-dim)';
+}
+
+function gpsError(err) {
+  gps.active = false;
+  const btn = document.getElementById('startGpsBtn');
+  btn.textContent = 'Enable GPS';
+  let msg;
+  switch(err.code) {
+    case 1: msg = 'Permission denied — allow location in browser settings'; break;
+    case 2: msg = 'Position unavailable — check device GPS'; break;
+    case 3: msg = 'Timeout — retrying…'; break;
+    default: msg = 'GPS error ' + err.code;
+  }
+  setGpsUi('error', msg);
+  // Show error prominently in the position field too
+  const disp = document.getElementById('objGpsDisp');
+  disp.textContent = msg;
+  disp.style.color = 'var(--red)';
+  disp.className = 'coord';
+}
+
+function stopGps() {
+  if (gps.watchId !== null) {
+    navigator.geolocation.clearWatch(gps.watchId);
+    gps.watchId = null;
+  }
+  gps.active = false;
+  setGpsUi('off', 'GPS off');
+  document.getElementById('startGpsBtn').textContent = 'Enable GPS';
+  const disp = document.getElementById('objGpsDisp');
+  disp.textContent = 'Not acquired';
+  disp.style.color = '';
+  disp.className = 'coord unset';
+}
+
+function onGpsPosition(pos) {
+  const {latitude:lat, longitude:lon, speed:spd, heading:hdg, accuracy:acc} = pos.coords;
+  const now = pos.timestamp;
+  // Compute heading/speed from consecutive fixes
+  if (gps.prevLat !== null) {
+    const dt = (now - gps.prevTime) / 1000;
+    if (dt > 0.2) {
+      const dlat = lat - gps.prevLat, dlon = lon - gps.prevLon;
+      const refLat = (lat + gps.prevLat) / 2;
+      const dx = dlon * Math.cos(D2R(refLat)) * METERS_PER_DEG_LAT;
+      const dy = dlat * METERS_PER_DEG_LAT;
+      const d = Math.hypot(dx, dy);
+      gps.compSpeed   = d / dt;
+      gps.compHeading = ((Math.atan2(dx, dy) * 180 / Math.PI) + 360) % 360;
+    }
+  }
+  gps.prevLat = lat; gps.prevLon = lon; gps.prevTime = now;
+  gps.lat = lat; gps.lon = lon;
+  gps.speed_ms = (spd !== null && spd >= 0) ? spd : null;
+  gps.heading  = (hdg !== null && hdg >= 0) ? hdg  : null;
+  gps.accuracy = acc;
+  gps.active   = true;
+
+  const disp = document.getElementById('objGpsDisp');
+  disp.textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
+  disp.style.color = '';
+  disp.className = 'coord';
+
+  const ds = gps.speed_ms !== null ? gps.speed_ms : (gps.compSpeed || null);
+  const spdEl = document.getElementById('objSpdDisp');
+  spdEl.textContent = ds !== null ? (ds * MS_TO_KNOTS).toFixed(1) + ' kts' : '—';
+  spdEl.className = 'coord';
+
+  const dh = gps.heading !== null ? gps.heading : (gps.compHeading !== null ? gps.compHeading : null);
+  const hdgEl = document.getElementById('objHdgDisp');
+  hdgEl.textContent = dh !== null ? dh.toFixed(0) + '°' : '—';
+  hdgEl.className = 'coord';
+
+  setGpsUi('active', '±' + acc.toFixed(0) + ' m');
+  document.getElementById('startGpsBtn').textContent = 'Stop GPS';
+}
+
+function startGps() {
+  // Stop if already running
+  if (gps.watchId !== null) { stopGps(); return; }
+
+  // Must be HTTPS or localhost
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    setGpsUi('error', 'HTTPS required');
+    const disp = document.getElementById('objGpsDisp');
+    disp.textContent = 'Open via HTTPS to use GPS';
+    disp.style.color = 'var(--warn)';
+    disp.className = 'coord';
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    setGpsUi('error', 'GPS not supported');
+    return;
+  }
+
+  setGpsUi('off', 'Acquiring…');
+  document.getElementById('startGpsBtn').textContent = 'Acquiring…';
+  document.getElementById('startGpsBtn').disabled = true;
+
+  // First do a one-shot getCurrentPosition to trigger the permission dialog
+  // immediately and give fast first fix, then follow up with watchPosition
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      onGpsPosition(pos);
+      document.getElementById('startGpsBtn').disabled = false;
+      gps.watchId = navigator.geolocation.watchPosition(
+        onGpsPosition,
+        gpsError,
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 }
+      );
+    },
+    err => {
+      document.getElementById('startGpsBtn').disabled = false;
+      gpsError(err);
+    },
+    { enableHighAccuracy: true, timeout: 15000 }
+  );
+}
+document.getElementById('startGpsBtn').addEventListener('click', startGps);
+
+/* ── Flash helper ── */
+function flash(btn,ok){ const t=btn.textContent; btn.textContent=ok?'✓ Set!':'✗ No GPS'; btn.style.opacity='.6'; setTimeout(()=>{ btn.textContent=t; btn.style.opacity='1'; },1200); }
+
+/* ── Set A / B ── */
+document.getElementById('setABtn').addEventListener('click',()=>{
+  const btn=document.getElementById('setABtn');
+  if (!gps.lat){ flash(btn,false); return; }
+  pts.aLat=gps.lat; pts.aLon=gps.lon;
+  document.getElementById('ptADisp').textContent=`${pts.aLat.toFixed(5)}, ${pts.aLon.toFixed(5)}`; document.getElementById('ptADisp').className='coord';
+  flash(btn,true);
+});
+document.getElementById('setBBtn').addEventListener('click',()=>{
+  const btn=document.getElementById('setBBtn');
+  if (!gps.lat){ flash(btn,false); return; }
+  pts.bLat=gps.lat; pts.bLon=gps.lon;
+  document.getElementById('ptBDisp').textContent=`${pts.bLat.toFixed(5)}, ${pts.bLon.toFixed(5)}`; document.getElementById('ptBDisp').className='coord';
+  flash(btn,true);
+});
+
+/* ── Wind direction ── */
+function updateWindCompass(dir){
+  if (dir===null){ document.getElementById('windDirText').textContent='— °'; return; }
+  document.getElementById('windDirText').textContent=dir.toFixed(0)+'°';
+  const r=13, rad=D2R(dir);
+  const x2=19+r*Math.sin(rad), y2=19-r*Math.cos(rad);
+  const x1=19-6*Math.sin(rad), y1=19+6*Math.cos(rad);
+  document.getElementById('windArrowSvg').setAttribute('x1',x1.toFixed(1)); document.getElementById('windArrowSvg').setAttribute('y1',y1.toFixed(1));
+  document.getElementById('windArrowSvg').setAttribute('x2',x2.toFixed(1)); document.getElementById('windArrowSvg').setAttribute('y2',y2.toFixed(1));
+  const hx=-(y2-y1)/(r||1)*5, hy=(x2-x1)/(r||1)*5;
+  document.getElementById('windArrowHead').setAttribute('points',`${x2.toFixed(1)},${y2.toFixed(1)} ${(x2-hx-hy).toFixed(1)},${(y2-hy+hx).toFixed(1)} ${(x2-hx+hy).toFixed(1)},${(y2-hy-hx).toFixed(1)}`);
+}
+
+// Wind direction slider
+document.getElementById('windDir').addEventListener('input', function() {
+  wind.dir = parseFloat(this.value);
+  document.getElementById('windDirVal').textContent = this.value + '°';
+  updateWindCompass(wind.dir);
+});
+// Initialise compass to 0 on load
+wind.dir = 0;
+updateWindCompass(0);
+
+document.getElementById('windSpeed').addEventListener('input',function(){ wind.speed_kts=parseFloat(this.value); document.getElementById('windSpeedVal').textContent=parseFloat(this.value).toFixed(1)+' kts'; });
+
+/* ── Sliders ── */
+document.getElementById('lineLen').addEventListener('input',function(){ document.getElementById('lineLenVal').textContent=this.value+' m'; });
+document.getElementById('lineHeading').addEventListener('input',function(){ manual.lineHeading=parseFloat(this.value); document.getElementById('lineHeadingVal').textContent=this.value+'°'; });
+document.getElementById('speedManual').addEventListener('input',function(){ manual.speed_kts=parseFloat(this.value); document.getElementById('speedManualVal').textContent=parseFloat(this.value).toFixed(1)+' kts'; });
+document.getElementById('headingManual').addEventListener('input',function(){ manual.heading=parseFloat(this.value); document.getElementById('headingManualVal').textContent=this.value+'°'; });
+document.getElementById('schedTime').addEventListener('input',function(){ schedTime=parseFloat(this.value); const v=schedTime; document.getElementById('schedTimeVal').textContent=v<60?v+'s':`${Math.floor(v/60)}m ${(v%60).toFixed(0)}s`; });
+
+/* ── Animation ── */
+let lastAT=0;
+function animStep(ts){ if (!cv.animating) return; const r=calcIntercept(); if (!r||r.parallel||r.moving_away){cv.animating=false;document.getElementById('animBtn').textContent='▶ Animate';return;} cv.animT+=(ts-lastAT)/1000; lastAT=ts; if (cv.animT>=r.t){cv.animT=0;cv.animOx=cv.ox;cv.animOy=cv.oy;} requestAnimationFrame(animStep); }
+document.getElementById('animBtn').addEventListener('click',()=>{
+  const r=calcIntercept(); if (!r||r.parallel||r.moving_away) return;
+  cv.animating=!cv.animating;
+  if (cv.animating){cv.animT=0;cv.animOx=cv.ox;cv.animOy=cv.oy;lastAT=performance.now();requestAnimationFrame(animStep);}
+  document.getElementById('animBtn').textContent=cv.animating?'⏹ Stop':'▶ Animate';
+});
+
+/* ── Resize ── */
+function resize(){ const w=canvas.parentElement; canvas.width=w.clientWidth; canvas.height=w.clientHeight; }
+window.addEventListener('resize',resize); resize();
+
+/* ── Pointer / touch ── */
+let drag=null, pinchD0=null, pinchZ0=null;
+const HIT=28;
+function hitTest(cx,cy){ for (const p of [{k:'obj',mx:cv.ox,my:cv.oy},{k:'a',mx:cv.ax,my:cv.ay}]){ const [px,py]=mToC(p.mx,p.my); if (Math.hypot(cx-px,cy-py)<HIT) return p.k; } return null; }
+function getXY(e){ const r=canvas.getBoundingClientRect(),s=e.touches?e.touches[0]:e; return [s.clientX-r.left,s.clientY-r.top]; }
+function onDown(cx,cy,pan){ const h=hitTest(cx,cy); drag=h?{type:'move',key:h}:{type:'pan',lx:cx,ly:cy}; if (pan) drag={type:'pan',lx:cx,ly:cy}; }
+function onMove(cx,cy){ const [mx,my]=cToM(cx,cy); document.getElementById('coordInfo').textContent=`(${mx.toFixed(0)}, ${my.toFixed(0)}) m`; if (!drag) return; if (drag.type==='pan'){cv.panX+=(cx-drag.lx)/cv.zoom;cv.panY-=(cy-drag.ly)/cv.zoom;drag.lx=cx;drag.ly=cy;} else if (drag.key==='obj'){cv.ox=mx;cv.oy=my;} else if (drag.key==='a'){const nl=Math.hypot(mx-cv.bx,my-cv.by);document.getElementById('lineLen').value=nl.toFixed(0);document.getElementById('lineLenVal').textContent=nl.toFixed(0)+' m';} }
+function onUp(){ drag=null; }
+
+canvas.addEventListener('mousedown',e=>onDown(...getXY(e),e.button===1));
+canvas.addEventListener('mousemove',e=>onMove(...getXY(e)));
+canvas.addEventListener('mouseup',onUp); canvas.addEventListener('mouseleave',onUp);
+
+canvas.addEventListener('touchstart',e=>{ e.preventDefault(); if(e.touches.length===1){onDown(...getXY(e),false);}else if(e.touches.length===2){drag=null;pinchD0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);pinchZ0=cv.zoom;} },{passive:false});
+canvas.addEventListener('touchmove',e=>{ e.preventDefault(); if(e.touches.length===1){onMove(...getXY(e));}else if(e.touches.length===2&&pinchD0){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);cv.zoom=Math.max(0.05,Math.min(12,pinchZ0*d/pinchD0));} },{passive:false});
+canvas.addEventListener('touchend',e=>{ e.preventDefault(); if(e.touches.length===0){onUp();pinchD0=null;} },{passive:false});
+canvas.addEventListener('wheel',e=>{ e.preventDefault(); cv.zoom=Math.max(0.05,Math.min(12,cv.zoom*(e.deltaY>0?0.92:1.08))); },{passive:false});
+
+/* ── Start ── */
+draw();
+</script>
+</body>
+</html>
