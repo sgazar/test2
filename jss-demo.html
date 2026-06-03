@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSS – Jönköpings Segelsällskap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --blue-0: #042C53;
+  --blue-1: #0C447C;
+  --blue-2: #185FA5;
+  --blue-3: #378ADD;
+  --blue-4: #85B7EB;
+  --blue-5: #C8DFF5;
+  --blue-6: #E6F1FB;
+  --green-d: #04342C;
+  --green-m: #1D9E75;
+  --amber-d: #412402;
+  --amber-m: #BA7517;
+  --purple-d: #26215C;
+  --purple-m: #7F77DD;
+  --pink-d: #4B1528;
+  --pink-m: #D4537E;
+  --gray-d: #2C2C2A;
+  --gray-m: #5F5E5A;
+  --serif: 'Playfair Display', Georgia, serif;
+  --sans: 'DM Sans', system-ui, sans-serif;
+  --bg: #F4F3EF;
+  --card: #fff;
+  --border: rgba(0,0,0,0.09);
+  --text: #1a1a18;
+  --muted: #888780;
+  --radius: 12px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.65;
+  overflow-x: hidden;
+}
+
+/* ── NAV ─────────────────────────────────────────────── */
+.nav {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 2rem; height: 62px;
+  box-shadow: 0 1px 0 var(--border);
+  transition: box-shadow .2s;
+}
+.nav.scrolled { box-shadow: 0 2px 16px rgba(0,0,0,0.1); }
+
+.logo { display: flex; align-items: center; gap: 11px; text-decoration: none; }
+.logo-mark {
+  width: 38px; height: 38px;
+  background: var(--blue-1); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.logo-mark svg { width: 22px; height: 22px; }
+.logo-text { font-family: var(--serif); font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.logo-sub { display: block; font-family: var(--sans); font-size: 10px; font-weight: 300; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+
+.nav-links { display: flex; align-items: center; gap: 2px; list-style: none; }
+.nav-links a { display: block; padding: 6px 12px; border-radius: 6px; font-size: 13.5px; color: var(--gray-m); text-decoration: none; transition: background .12s, color .12s; }
+.nav-links a:hover { background: var(--blue-6); color: var(--blue-1); }
+.nav-links .cta a { background: var(--blue-1); color: #fff; font-weight: 500; }
+.nav-links .cta a:hover { background: var(--blue-0); }
+
+/* ── HERO ────────────────────────────────────────────── */
+.hero {
+  position: relative; min-height: 520px;
+  display: flex; align-items: flex-end;
+  padding: 3rem 2rem 3.5rem;
+  overflow: hidden;
+  background: var(--blue-0);
+}
+
+.hero-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 72% 38%, rgba(55,138,221,.28) 0%, transparent 58%),
+    radial-gradient(ellipse at 18% 85%, rgba(12,68,124,.45) 0%, transparent 52%),
+    linear-gradient(158deg, #031f3d 0%, #0C447C 52%, #1a6dba 100%);
+}
+
+/* animated waves */
+.hero-waves {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  pointer-events: none; overflow: hidden; height: 130px;
+}
+.hero-waves svg { width: 200%; height: 100%; animation: wavescroll 14s linear infinite; }
+@keyframes wavescroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* stars/particles */
+.hero-stars { position: absolute; inset: 0; pointer-events: none; }
+.star { position: absolute; background: rgba(255,255,255,.55); border-radius: 50%; animation: twinkle 3s ease-in-out infinite; }
+@keyframes twinkle { 0%,100% { opacity: .2; } 50% { opacity: .8; } }
+
+.hero-badge {
+  position: absolute; top: 2rem; right: 2rem;
+  background: rgba(255,255,255,.1);
+  border: .5px solid rgba(255,255,255,.22);
+  border-radius: var(--radius);
+  padding: 12px 18px; text-align: center;
+  backdrop-filter: blur(6px);
+  animation: fadedown .6s .4s both;
+}
+.hero-badge-num { font-family: var(--serif); font-size: 34px; font-weight: 700; color: #fff; line-height: 1; }
+.hero-badge-label { font-size: 10px; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .12em; margin-top: 3px; }
+
+.hero-content { position: relative; z-index: 2; max-width: 580px; }
+.hero-eye {
+  font-size: 11px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--blue-4); margin-bottom: .75rem;
+  animation: fadeup .5s .1s both;
+}
+.hero-title {
+  font-family: var(--serif); font-size: clamp(30px,5vw,50px); font-weight: 700;
+  color: #fff; line-height: 1.12; margin-bottom: 1rem;
+  animation: fadeup .5s .2s both;
+}
+.hero-sub {
+  font-size: 15px; font-weight: 300; color: rgba(255,255,255,.72);
+  max-width: 440px; margin-bottom: 1.75rem; line-height: 1.65;
+  animation: fadeup .5s .3s both;
+}
+.hero-btns { display: flex; gap: 12px; flex-wrap: wrap; animation: fadeup .5s .35s both; }
+.btn {
+  display: inline-block; padding: 11px 24px; border-radius: 7px;
+  font-size: 13.5px; font-weight: 500; text-decoration: none; border: none; cursor: pointer;
+  transition: transform .1s, box-shadow .15s;
+}
+.btn:active { transform: scale(.97); }
+.btn-white { background: #fff; color: var(--blue-0); }
+.btn-white:hover { background: #edf4fc; }
+.btn-ghost { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.3); }
+.btn-ghost:hover { background: rgba(255,255,255,.18); }
+.btn-primary { background: var(--blue-1); color: #fff; }
+.btn-primary:hover { background: var(--blue-0); }
+
+@keyframes fadeup { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
+@keyframes fadedown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:none; } }
+
+/* ── STATS BAR ───────────────────────────────────────── */
+.stats {
+  display: grid; grid-template-columns: repeat(4,1fr);
+  background: var(--card); border-bottom: 1px solid var(--border);
+}
+.stat {
+  display: flex; align-items: center; gap: 14px;
+  padding: 1.3rem 1.5rem; border-right: 1px solid var(--border);
+}
+.stat:last-child { border-right: none; }
+.stat-icon {
+  width: 42px; height: 42px; flex-shrink: 0;
+  background: var(--blue-6); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.stat-num { font-family: var(--serif); font-size: 22px; font-weight: 700; line-height: 1; }
+.stat-lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* ── SECTION ─────────────────────────────────────────── */
+.section { padding: 3.5rem 2rem; }
+.section-dark { background: var(--blue-0); }
+.eyebrow { font-size: 11px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--blue-2); margin-bottom: .4rem; }
+.section-dark .eyebrow { color: var(--blue-4); }
+.section-title { font-family: var(--serif); font-size: clamp(22px,3.5vw,30px); font-weight: 700; margin-bottom: 1.75rem; }
+.section-dark .section-title { color: #fff; }
+.container { max-width: 1180px; margin: 0 auto; }
+
+/* ── ACTIVITIES GRID ─────────────────────────────────── */
+.acts { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+.act {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  cursor: pointer; text-decoration: none; color: inherit; display: block;
+  transition: transform .18s, box-shadow .18s;
+}
+.act:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,0.12); }
+.act-vis {
+  height: 148px; position: relative;
+  display: flex; align-items: flex-end; padding: 14px 16px;
+  overflow: hidden;
+}
+.act-vis.sail    { background: linear-gradient(135deg, #042C53, #185FA5); }
+.act-vis.fish    { background: linear-gradient(135deg, #04342C, #1D9E75); }
+.act-vis.harbor  { background: linear-gradient(135deg, #2C2C2A, #5F5E5A); }
+.act-vis.youth   { background: linear-gradient(135deg, #26215C, #7F77DD); }
+.act-vis.regatta { background: linear-gradient(135deg, #412402, #BA7517); }
+.act-vis.social  { background: linear-gradient(135deg, #4B1528, #D4537E); }
+.act-ico-bg { position: absolute; right: 12px; bottom: 4px; font-size: 56px; color: rgba(255,255,255,.18); pointer-events: none; }
+.act-lbl { font-size: 10px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.6); position: absolute; top: 12px; left: 16px; }
+.act-name { font-family: var(--serif); font-size: 22px; font-weight: 700; color: #fff; position: relative; z-index: 1; line-height: 1.1; }
+.act-body { padding: 14px 16px 16px; }
+.act-desc { font-size: 13px; color: var(--gray-m); line-height: 1.55; margin-bottom: 10px; }
+.act-link { font-size: 12.5px; font-weight: 500; color: var(--blue-2); display: flex; align-items: center; gap: 4px; }
+
+/* ── EVENTS ──────────────────────────────────────────── */
+.events-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+.ev {
+  background: rgba(255,255,255,.08); border: .5px solid rgba(255,255,255,.15);
+  border-radius: var(--radius); padding: 1.1rem 1.2rem;
+  text-decoration: none; display: block; color: inherit;
+  transition: background .15s;
+}
+.ev:hover { background: rgba(255,255,255,.14); }
+.ev-date {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(133,183,235,.2); border-radius: 4px; padding: 3px 9px;
+  font-size: 11px; font-weight: 500; color: var(--blue-4); margin-bottom: 8px;
+}
+.ev-title { font-size: 14px; font-weight: 500; color: #fff; line-height: 1.3; margin-bottom: 5px; }
+.ev-meta { font-size: 12px; color: rgba(255,255,255,.5); }
+
+/* ── TWO COL ─────────────────────────────────────────── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 0 2rem 3.5rem; max-width: 1180px; margin: 0 auto; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.4rem; }
+
+.news-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.news-item:last-child { border-bottom: none; padding-bottom: 0; }
+.news-item:first-child { padding-top: 0; }
+.news-thumb {
+  width: 60px; height: 60px; flex-shrink: 0; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 26px;
+}
+.news-date { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.news-hl { font-size: 13.5px; font-weight: 500; line-height: 1.35; color: var(--text); }
+
+/* weather */
+.weather-now { display: flex; align-items: flex-start; gap: 1rem; margin: .75rem 0 1.25rem; }
+.weather-temp { font-family: var(--serif); font-size: 58px; font-weight: 400; line-height: 1; color: var(--blue-1); }
+.weather-temp sup { font-size: 22px; vertical-align: top; margin-top: 8px; }
+.weather-cond { font-size: 15px; font-weight: 500; padding-top: 4px; }
+.weather-wind { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.ports { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.port { background: var(--bg); border-radius: 8px; padding: 9px 12px; }
+.port-name { font-size: 11.5px; color: var(--muted); margin-bottom: 2px; }
+.port-wind { font-size: 13px; font-weight: 500; }
+
+/* ── FOOTER ──────────────────────────────────────────── */
+.footer { background: var(--card); border-top: 1px solid var(--border); }
+.footer-main {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 2rem; padding: 3rem 2rem 2rem; max-width: 1180px; margin: 0 auto;
+}
+.footer-brand { font-family: var(--serif); font-size: 17px; font-weight: 700; margin-bottom: .5rem; }
+.footer-addr { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 1rem; font-style: normal; }
+.footer-social { display: flex; gap: 8px; }
+.soc { width: 34px; height: 34px; border-radius: 7px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--muted); text-decoration: none; transition: background .12s; }
+.soc:hover { background: var(--blue-6); color: var(--blue-2); }
+.footer-col-ttl { font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: .75rem; }
+.footer-links { list-style: none; }
+.footer-links li { margin-bottom: 7px; }
+.footer-links a { font-size: 13px; color: var(--gray-m); text-decoration: none; }
+.footer-links a:hover { color: var(--blue-2); }
+.footer-bottom {
+  border-top: 1px solid var(--border); padding: 1rem 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: 1180px; margin: 0 auto; font-size: 12px; color: var(--muted);
+}
+
+/* ── MODAL ───────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(4,44,83,.7);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999; padding: 1rem; opacity: 0; pointer-events: none;
+  transition: opacity .2s;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--card); border-radius: 16px;
+  max-width: 500px; width: 100%; padding: 2rem;
+  transform: scale(.95); transition: transform .2s;
+  position: relative;
+}
+.modal-overlay.open .modal { transform: scale(1); }
+.modal-close {
+  position: absolute; top: 16px; right: 16px;
+  background: var(--bg); border: none; border-radius: 6px;
+  width: 32px; height: 32px; cursor: pointer; font-size: 18px;
+  color: var(--muted); display: flex; align-items: center; justify-content: center;
+}
+.modal-tag { display: inline-block; font-size: 10px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; padding: 3px 10px; border-radius: 4px; margin-bottom: .75rem; }
+.modal-title { font-family: var(--serif); font-size: 26px; font-weight: 700; margin-bottom: .75rem; }
+.modal-body { font-size: 14px; color: var(--gray-m); line-height: 1.65; margin-bottom: 1.25rem; }
+.modal-footer { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ── RESPONSIVE ──────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .acts { grid-template-columns: repeat(2,1fr); }
+  .footer-main { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 768px) {
+  .stats { grid-template-columns: repeat(2,1fr); }
+  .stats .stat:nth-child(2) { border-right: none; }
+  .acts { grid-template-columns: 1fr; }
+  .events-grid { grid-template-columns: 1fr; }
+  .two-col { grid-template-columns: 1fr; }
+  .footer-main { grid-template-columns: 1fr; }
+  .nav-links { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<header class="nav" id="nav">
+  <a href="#" class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L5 20l7-4 7 4Z" fill="white" opacity=".92"/>
+        <path d="M12 2l7 18-7-4Z" fill="white" opacity=".4"/>
+        <line x1="2" y1="22" x2="22" y2="22" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="logo-text">Jönköpings Segelsällskap<span class="logo-sub">sedan 1905</span></div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#hamnar">Hamnar</a></li>
+    <li><a href="#verksamheter">Verksamheter</a></li>
+    <li><a href="#evenemang">Kalender</a></li>
+    <li><a href="#nyheter">Artiklar</a></li>
+    <li class="cta"><a href="#bli-medlem">Bli medlem</a></li>
+  </ul>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-stars" id="stars"></div>
+  <div class="hero-waves">
+    <svg viewBox="0 0 1440 130" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <path d="M0,80 C200,20 400,110 600,65 C800,20 1000,100 1200,60 C1320,38 1400,70 1440,80 L1440,130 L0,130Z" fill="rgba(244,243,239,0.9)"/>
+      <path d="M0,100 C300,55 600,115 900,85 C1100,68 1300,95 1440,100 L1440,130 L0,130Z" fill="rgba(244,243,239,0.5)"/>
+      <path d="M0,80 C200,20 400,110 600,65 C800,20 1000,100 1200,60 C1320,38 1400,70 1440,80 L1440,130 L0,130Z" fill="rgba(244,243,239,0.9)" transform="translate(720,0)"/>
+      <path d="M0,100 C300,55 600,115 900,85 C1100,68 1300,95 1440,100 L1440,130 L0,130Z" fill="rgba(244,243,239,0.5)" transform="translate(720,0)"/>
+    </svg>
+  </div>
+  <div class="hero-badge">
+    <div class="hero-badge-num">16°</div>
+    <div class="hero-badge-label">Vättern idag</div>
+  </div>
+  <div class="hero-content">
+    <p class="hero-eye">Vätterns hjärta sedan 1905</p>
+    <h1 class="hero-title">Gemenskap på Vättern</h1>
+    <p class="hero-sub">Vi nyttjar tillgången till vår stora vackra sjö för nöje, rekreation och upplevelser. Välkommen ombord.</p>
+    <div class="hero-btns">
+      <a href="#bli-medlem" class="btn btn-white" onclick="openModal('member')">Bli medlem →</a>
+      <a href="#verksamheter" class="btn btn-ghost">Utforska verksamheter</a>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat"><div class="stat-icon">👥</div><div><div class="stat-num">800+</div><div class="stat-lbl">Medlemmar</div></div></div>
+  <div class="stat"><div class="stat-icon">⚓</div><div><div class="stat-num">5</div><div class="stat-lbl">Hamnar &amp; bryggor</div></div></div>
+  <div class="stat"><div class="stat-icon">🏆</div><div><div class="stat-num">12+</div><div class="stat-lbl">Regattor per år</div></div></div>
+  <div class="stat"><div class="stat-icon">📅</div><div><div class="stat-num">50+</div><div class="stat-lbl">Aktiviteter per år</div></div></div>
+</div>
+
+<!-- ACTIVITIES -->
+<section class="section" id="verksamheter">
+  <div class="container">
+    <p class="eyebrow">Vad vi erbjuder</p>
+    <h2 class="section-title">Verksamheter för alla</h2>
+    <div class="acts">
+
+      <a class="act" onclick="openModal('sail'); return false;" href="#">
+        <div class="act-vis sail">
+          <span class="act-lbl">Segel</span>
+          <span class="act-ico-bg">⛵</span>
+          <span class="act-name">Segling</span>
+        </div>
+        <div class="act-body">
+          <p class="act-desc">Klubbens flaggskepp med stolta traditioner. Segelskola, kappsegling och coastalsegling på Vättern.</p>
+          <span class="act-link">Läs mer →</span>
+        </div>
+      </a>
+
+      <a class="act" onclick="openModal('fish'); return false;" href="#">
+        <div class="act-vis fish">
+          <span class="act-lbl">Fiske</span>
+          <span class="act-ico-bg">🎣</span>
+          <span class="act-name">Fiske</span>
+        </div>
+        <div class="act-body">
+          <p class="act-desc">Gemensamma tävlingar och resor till fiskevatten. Utbyte med andra fiskeföreningar längs kusten.</p>
+          <span class="act-link">Läs mer →</span>
+        </div>
+      </a>
+
+      <a class="act" onclick="openModal('harbor'); return false;" href="#">
+        <div class="act-vis harbor">
+          <span class="act-lbl">Infrastruktur</span>
+          <span class="act-ico-bg">⚓</span>
+          <span class="act-name">Hamnplatser</span>
+        </div>
+        <div class="act-body">
+          <p class="act-desc">Platser i Huskvarna hamn, Rosendala, Munksjöslipen och Sjöbo. Sommar- och vinterplatser.</p>
+          <span class="act-link">Se hamnar →</span>
+        </div>
+      </a>
+
+      <a class="act" onclick="openModal('youth'); return false;" href="#">
+        <div class="act-vis youth">
+          <span class="act-lbl">Ungdom</span>
+          <span class="act-ico-bg">🏄</span>
+          <span class="act-name">Ungdom</span>
+        </div>
+        <div class="act-body">
+          <p class="act-desc">Seglarkurser och aktiviteter för unga i alla åldrar. Vi skapar nästa generation av Vätternseglar.</p>
+          <span class="act-link">Läs mer →</span>
+        </div>
+      </a>
+
+      <a class="act" onclick="openModal('regatta'); return false;" href="#">
+        <div class="act-vis regatta">
+          <span class="act-lbl">Tävling</span>
+          <span class="act-ico-bg">🏁</span>
+          <span class="act-name">Regattor</span>
+        </div>
+        <div class="act-body">
+          <p class="act-desc">Nationaldagsregattan och Southern Wättern Regatta. Tävlingar på lokal och internationell nivå.</p>
+          <span class="act-link">Anmäl dig →</span>
+        </div>
+      </a>
+
+      <a class="act" onclick="openModal('social'); return false;" href="#">
+        <div class="act-vis social">
+          <span class="act-lbl">Gemenskap</span>
+          <span class="act-ico-bg">👥</span>
+          <span class="act-name">Sektioner</span>
+        </div>
+        <div class="act-body">
+          <p class="act-desc">Huskvarna, Jönköping, Munksjö, Sjöbo, Fest, Ungdom och Segel — en sektion för dig.</p>
+          <span class="act-link">Utforska →</span>
+        </div>
+      </a>
+
+    </div>
+  </div>
+</section>
+
+<!-- EVENTS -->
+<section class="section section-dark" id="evenemang">
+  <div class="container">
+    <p class="eyebrow">Kommande</p>
+    <h2 class="section-title">Evenemang &amp; regattor</h2>
+    <div class="events-grid">
+      <a href="https://www.svenskalag.se/jonkopingsss/formular/nationaldagsregatta-2026/37198" class="ev" target="_blank" rel="noopener">
+        <div class="ev-date">📅 6 juni 2026</div>
+        <div class="ev-title">Nationaldagsregatta 2026</div>
+        <div class="ev-meta">📍 Jönköping</div>
+      </a>
+      <a href="https://www.sailarena.com/sv/se/club/jss/southern-wettern-regatta-2026/" class="ev" target="_blank" rel="noopener">
+        <div class="ev-date">📅 Juli 2026</div>
+        <div class="ev-title">Southern Wättern Regatta 2026</div>
+        <div class="ev-meta">📍 Vättern</div>
+      </a>
+      <a href="https://www.svenskalag.se/jonkopingsss/formular/seglarcoaching-sc1/27480" class="ev" target="_blank" rel="noopener">
+        <div class="ev-date">📅 Juni–Augusti</div>
+        <div class="ev-title">Seglarcoaching SC1 &amp; SC2</div>
+        <div class="ev-meta">📍 Huskvarna hamn</div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- NEWS + WEATHER -->
+<div class="two-col" id="nyheter" style="padding-top:3.5rem;">
+
+  <div class="card">
+    <p class="eyebrow" style="margin-bottom:.9rem;">Senaste artiklarna</p>
+    <div class="news-item">
+      <div class="news-thumb" style="background:#E6F1FB;">⛵</div>
+      <div>
+        <div class="news-date">31 mars 2026 · Tillbakablick</div>
+        <div class="news-hl">Sjöfarten på Vättern — berättelser från skutornas tid</div>
+      </div>
+    </div>
+    <div class="news-item">
+      <div class="news-thumb" style="background:#EAF3DE;">🛟</div>
+      <div>
+        <div class="news-date">17 mars 2025 · Allmänt</div>
+        <div class="news-hl">Årets sjöräddare kommer från Visingsö</div>
+      </div>
+    </div>
+    <div class="news-item">
+      <div class="news-thumb" style="background:#E1F5EE;">🎣</div>
+      <div>
+        <div class="news-date">9 okt 2024 · Tillbakablick</div>
+        <div class="news-hl">Om Vättern och vätternfisket — geologin bakom sjön</div>
+      </div>
+    </div>
+    <div style="margin-top:1rem;">
+      <a href="https://jssklubb.se/artiklar" class="btn btn-primary" target="_blank" style="font-size:12.5px; padding:8px 18px;">Alla artiklar →</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.5rem;">
+      <p class="eyebrow" style="margin:0;">Vädret vid Vättern</p>
+      <span style="font-size:12px;color:var(--muted);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#5cb85c;margin-right:4px;"></span>Live</span>
+    </div>
+    <div class="weather-now">
+      <div class="weather-temp">16<sup>°</sup></div>
+      <div>
+        <div class="weather-cond">Delvis molnigt</div>
+        <div class="weather-wind">💨 4 m/s NV · Vättern</div>
+      </div>
+    </div>
+    <div class="ports">
+      <div class="port"><div class="port-name">Huskvarna hamn</div><div class="port-wind">💨 4 m/s NV</div></div>
+      <div class="port"><div class="port-name">Sjöbo Trånghalla</div><div class="port-wind">💨 3 m/s N</div></div>
+      <div class="port"><div class="port-name">Rosendala</div><div class="port-wind">💨 5 m/s NV</div></div>
+      <div class="port"><div class="port-name">Munksjö</div><div class="port-wind">💨 3 m/s V</div></div>
+    </div>
+    <div style="margin-top:1rem;">
+      <a href="https://jssklubb.se/kamera" class="btn btn-primary" target="_blank" style="font-size:12.5px; padding:8px 18px;">📷 Väderkameror</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-main">
+    <div>
+      <div class="footer-brand">Jönköpings Segelsällskap</div>
+      <address class="footer-addr">
+        Huskvarnavägen 174<br>
+        Box 145, 561 22 Huskvarna<br>
+        <a href="mailto:kansliet@jssklubb.se" style="color:var(--muted);">kansliet@jssklubb.se</a><br>
+        070-937 44 60
+      </address>
+      <div class="footer-social">
+        <a href="https://www.facebook.com/groups/155567511168764/" class="soc" target="_blank" title="Facebook">f</a>
+        <a href="https://www.instagram.com/jonkopingssegelsallskap/" class="soc" target="_blank" title="Instagram">ig</a>
+        <a href="https://www.youtube.com/channel/UCU-qy6ag_JDlWPRXTr_Td0A/" class="soc" target="_blank" title="YouTube">▶</a>
+      </div>
+    </div>
+    <div>
+      <div class="footer-col-ttl">Snabblänkar</div>
+      <ul class="footer-links">
+        <li><a href="https://jssklubb.se/bli-medlem/">Bli medlem</a></li>
+        <li><a href="https://jssklubb.se/avgifter/">Avgifter</a></li>
+        <li><a href="https://jssklubb.se/hamnar/">Hamnar</a></li>
+        <li><a href="https://jssklubb.se/batliv/">Verksamheter</a></li>
+        <li><a href="https://jssklubb.se/galleri/">Bildgalleri</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-ttl">Klubben</div>
+      <ul class="footer-links">
+        <li><a href="https://jssklubb.se/om-jss/">Vår historia</a></li>
+        <li><a href="https://jssklubb.se/styrelse/">Styrelse</a></li>
+        <li><a href="https://jssklubb.se/ungdomsverksamhet/">Ungdom</a></li>
+        <li><a href="https://jssklubb.se/kontakt/">Kontakt</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-ttl">Anmälan</div>
+      <ul class="footer-links">
+        <li><a href="https://www.svenskalag.se/jonkopingsss/formular/seglarcoaching-sc1/27480" target="_blank">Seglarcoaching SC1</a></li>
+        <li><a href="https://www.svenskalag.se/jonkopingsss/formular/seglarcoaching-sc2/28052" target="_blank">Seglarcoaching SC2</a></li>
+        <li><a href="https://www.svenskalag.se/jonkopingsss/formular/seglarskola/22057" target="_blank">Seglarskola</a></li>
+        <li><a href="https://www.svenskalag.se/jonkopingsss/formular/nationaldagsregatta-2026/37198" target="_blank">Nationaldagsregatta</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 Jönköpings Segelsällskap</span>
+    <a href="https://jssklubb.se/gdpr/" style="color:var(--muted); text-decoration:none;">Cookies &amp; integritet</a>
+  </div>
+</footer>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal" id="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+/* Stars */
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 28; i++) {
+  const s = document.createElement('div');
+  s.className = 'star';
+  const sz = Math.random() * 2.5 + 1;
+  s.style.cssText = `
+    width:${sz}px; height:${sz}px;
+    left:${Math.random()*100}%;
+    top:${Math.random()*100}%;
+    animation-delay:${Math.random()*3}s;
+    animation-duration:${2+Math.random()*3}s;
+  `;
+  starsEl.appendChild(s);
+}
+
+/* Nav scroll */
+window.addEventListener('scroll', () => {
+  document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 10);
+});
+
+/* Modal data */
+const modals = {
+  member: {
+    tag: 'Bli medlem', tagColor: '#E6F1FB', tagText: '#185FA5',
+    title: 'Bli medlem i JSS',
+    body: `Välkommen till Jönköpings Segelsällskap! Ansökan görs online via vår hemsida.<br><br>
+      <strong>Årsavgift:</strong> Ordinarie 800 kr · Familj 1 200 kr · Ungdom (–25 år) 200 kr<br><br>
+      Fyll i dina uppgifter, eventuell båtinfo och om du önskar hamnplats. Du godkänner JSS stadgar och GDPR vid inskickning.`,
+    btn: 'Ansök nu →', btnUrl: 'https://jssklubb.se/bli-medlem/'
+  },
+  sail: {
+    tag: 'Segling', tagColor: '#E6F1FB', tagText: '#185FA5',
+    title: 'Segling på Vättern',
+    body: 'JSS segelsektion erbjuder seglarskola för barn och vuxna (SC1 & SC2), fredagsracing, kappseglingar och coastalsegling. Vättern bjuder på varierande segling — allt från lätta sommarbrisar till krävande höststormar.',
+    btn: 'Anmäl till segelkurs', btnUrl: 'https://www.svenskalag.se/jonkopingsss/formular/seglarcoaching-sc1/27480'
+  },
+  fish: {
+    tag: 'Fiske', tagColor: '#E1F5EE', tagText: '#1D9E75',
+    title: 'Fiskesektionen',
+    body: 'Fiskesektionen arrangerar fisketävlingar, gemensamma fisketurer och resor till fiskevatten längs kusten. Vi samarbetar med flera fiskeföreningar runt om i Sverige. Alla nivåer välkomna!',
+    btn: 'Läs mer', btnUrl: 'https://jssklubb.se/batliv/'
+  },
+  harbor: {
+    tag: 'Hamnar', tagColor: '#F1EFE8', tagText: '#5F5E5A',
+    title: 'Hamnplatser',
+    body: 'JSS förfogar över platser i:<br><br>⚓ <strong>Huskvarna hamn</strong><br>⚓ <strong>Rosendalsbassängen</strong><br>⚓ <strong>Munksjöslipen</strong><br>⚓ <strong>Sjöbo / Trånghalla</strong><br><br>Sommar- och vinterplatser finns tillgängliga för medlemmar. Observera att 6 h medlemsarbete per år krävs för platsinnehavare.',
+    btn: 'Se alla hamnar', btnUrl: 'https://jssklubb.se/hamnar/'
+  },
+  youth: {
+    tag: 'Ungdom', tagColor: '#EEEDFE', tagText: '#7F77DD',
+    title: 'Ungdomsverksamhet',
+    body: 'Vi erbjuder segelkurser för barn och ungdomar från 7 år och uppåt. Juniorsegling, Optimistjollekurser och sommarsegelläger. Framtidens seglartalanger formas på Vätterns vatten!',
+    btn: 'Anmäl ungdom', btnUrl: 'https://www.svenskalag.se/jonkopingsss/formular/seglarskola/22057'
+  },
+  regatta: {
+    tag: 'Regattor', tagColor: '#FAEEDA', tagText: '#BA7517',
+    title: 'Regattor & tävlingar',
+    body: 'JSS arrangerar bland annat:<br><br>🏁 <strong>Nationaldagsregattan</strong> – 6 juni 2026<br>🏁 <strong>Southern Wättern Regatta</strong> – Juli 2026<br><br>Regattor seglas enligt ISAF regler och är öppna för alla klasser. Anmälan sker via Sailarena eller SvenskaLag.',
+    btn: 'Anmäl till regatta', btnUrl: 'https://www.sailarena.com/sv/se/club/jss/southern-wettern-regatta-2026/'
+  },
+  social: {
+    tag: 'Sektioner', tagColor: '#FBEAF0', tagText: '#D4537E',
+    title: 'Sektioner & gemenskap',
+    body: 'JSS har sju sektioner:<br><br>👥 Huskvarnasektionen · Jönköpingssektionen · Munksjösektionen · Sjöbosektionen · Festsektionen · Ungdomssektionen · Segelsektionen<br><br>Varje sektion driver egna aktiviteter och evenemang under säsongen.',
+    btn: 'Läs om sektionerna', btnUrl: 'https://jssklubb.se/batliv/'
+  }
+};
+
+function openModal(key) {
+  const m = modals[key];
+  if (!m) return;
+  document.getElementById('modal-content').innerHTML = `
+    <span class="modal-tag" style="background:${m.tagColor}; color:${m.tagText};">${m.tag}</span>
+    <div class="modal-title">${m.title}</div>
+    <div class="modal-body">${m.body}</div>
+    <div class="modal-footer">
+      <a href="${m.btnUrl}" class="btn btn-primary" target="_blank" rel="noopener">${m.btn}</a>
+      <button class="btn btn-ghost" style="background:var(--bg);color:var(--text);border:1px solid var(--border);" onclick="closeModal()">Stäng</button>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal')) return;
+  document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
+</body>
+</html>
