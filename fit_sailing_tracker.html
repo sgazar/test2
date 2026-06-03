@@ -55,8 +55,8 @@
   header {
     background: var(--surface);
     border-bottom: 0.5px solid var(--border);
-    padding: 0 2rem;
-    height: 52px;
+    padding: 0 1.25rem;
+    height: 44px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -69,27 +69,31 @@
   header h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
   header span { font-size: 12px; color: var(--text3); margin-left: 4px; }
 
-  .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
+  .container { width: 100%; padding: 1rem 1.25rem 2rem; }
 
   /* Drop zone */
   .drop-zone {
     border: 1.5px dashed var(--border2);
     border-radius: var(--radius-lg);
-    padding: 2rem 1.5rem;
+    padding: 1.25rem 1.5rem;
     text-align: center;
     cursor: pointer;
-    transition: background .15s, border-color .15s;
+    transition: background .15s, border-color .15s, padding .2s;
     background: var(--surface);
-    margin-bottom: 1.25rem;
+    margin-bottom: .75rem;
   }
   .drop-zone:hover, .drop-zone.over {
     background: color-mix(in srgb, var(--accent) 8%, var(--surface));
     border-color: var(--accent);
   }
   .drop-zone input { display: none; }
-  .drop-zone i { font-size: 28px; color: var(--text3); display: block; margin-bottom: 8px; }
+  .drop-zone i { font-size: 24px; color: var(--text3); display: block; margin-bottom: 6px; }
   .drop-zone strong { font-size: 14px; color: var(--text); }
-  .drop-zone p { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  .drop-zone p { font-size: 12px; color: var(--text2); margin-top: 3px; }
+  .drop-zone.compact { padding: .5rem 1rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .drop-zone.compact i { font-size: 14px; margin: 0; display: inline-block; }
+  .drop-zone.compact strong { font-size: 12px; font-weight: 400; color: var(--text2); }
+  .drop-zone.compact p { display: none; }
 
   /* Chips */
   .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 1.25rem; min-height: 0; }
@@ -106,8 +110,13 @@
   .chip-x:hover { opacity: 1; }
 
   /* Layout */
-  .layout { display: grid; grid-template-columns: 1fr 300px; gap: 1.25rem; }
-  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+  .layout { display: flex; flex-direction: column; gap: 1rem; }
+  .below { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+  .card.span2 { grid-column: span 2; }
+  @media (max-width: 700px) {
+    .below { grid-template-columns: 1fr; }
+    .card.span2 { grid-column: span 1; }
+  }
 
   /* Map */
   .map-card {
@@ -117,7 +126,7 @@
     overflow: hidden;
     position: relative;
   }
-  #mc { display: block; width: 100%; height: 480px; cursor: crosshair; touch-action: none; }
+  #mc { display: block; width: 100%; height: 70vh; min-height: 420px; cursor: crosshair; touch-action: none; }
   #mc.panning { cursor: grabbing; }
 
   .map-controls {
@@ -210,7 +219,7 @@
   }
   .tab.on { color: var(--text); border-bottom-color: var(--accent); }
   .panel { display: none; } .panel.on { display: block; }
-  .chart-wrap { position: relative; width: 100%; height: 160px; }
+  .chart-wrap { position: relative; width: 100%; height: 240px; }
 
   /* Empty state */
   .empty {
@@ -222,8 +231,8 @@
 
   /* Responsive full-width charts on mobile */
   @media (max-width: 800px) {
-    .chart-wrap { height: 140px; }
-    #mc { height: 340px; }
+    .chart-wrap { height: 180px; }
+    #mc { height: 50vh; min-height: 320px; }
   }
 </style>
 </head>
@@ -260,8 +269,8 @@
         <div class="zoom-badge" id="zb">100%</div>
       </div>
 
-      <!-- Sidebar -->
-      <div class="sidebar">
+      <!-- Cards below -->
+      <div class="below">
 
         <!-- Stats -->
         <div class="card">
@@ -314,7 +323,7 @@
         </div>
 
         <!-- Charts -->
-        <div class="card">
+        <div class="card span2">
           <div class="tabs">
             <div class="tab on" data-p="speed">Speed</div>
             <div class="tab" data-p="hr">Heart rate</div>
@@ -326,7 +335,7 @@
           <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:6px;font-family:'DM Mono',monospace;">scroll = zoom · drag = pan · shift+drag = box-zoom · <a href="#" id="creset" style="color:var(--accent);text-decoration:none;">reset</a></div>
         </div>
 
-      </div><!-- /sidebar -->
+      </div><!-- /below -->
     </div><!-- /layout -->
   </div><!-- /main -->
 
@@ -660,6 +669,7 @@ function addTrack(name,buf){
   renderChips();
   document.getElementById('main').style.display='block';
   document.getElementById('empty').style.display='none';
+  document.getElementById('dz').classList.add('compact');
   // reset window & zoom to full range when adding a new track
   wstart=0;wend=1;
   wsEl.value=0;weEl.value=1000;
@@ -681,7 +691,11 @@ function renderChips(){
     rm.onclick=e=>{
       e.stopPropagation();
       tracks=tracks.filter(tr=>tr.id!==t.id);vis.delete(t.id);renderChips();
-      if(!tracks.length){document.getElementById('main').style.display='none';document.getElementById('empty').style.display='block';}
+      if(!tracks.length){
+        document.getElementById('main').style.display='none';
+        document.getElementById('empty').style.display='block';
+        document.getElementById('dz').classList.remove('compact');
+      }
       render();
     };
     fc.appendChild(c);
