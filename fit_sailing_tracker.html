@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIT Sailing Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f8f7f4;
+    --surface: #ffffff;
+    --surface2: #f1efe9;
+    --border: rgba(0,0,0,0.10);
+    --border2: rgba(0,0,0,0.18);
+    --text: #1a1917;
+    --text2: #6b6960;
+    --text3: #9e9c95;
+    --accent: #1a6fc4;
+    --radius-md: 8px;
+    --radius-lg: 14px;
+    --font: 'DM Sans', system-ui, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121210;
+      --surface: #1e1d1b;
+      --surface2: #2a2926;
+      --border: rgba(255,255,255,0.09);
+      --border2: rgba(255,255,255,0.16);
+      --text: #f0ede8;
+      --text2: #9e9c95;
+      --text3: #6b6960;
+      --accent: #5ba3e8;
+    }
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 0.5px solid var(--border);
+    padding: 0 2rem;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  header i { font-size: 20px; color: var(--accent); }
+  header h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  header span { font-size: 12px; color: var(--text3); margin-left: 4px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 1.5px dashed var(--border2);
+    border-radius: var(--radius-lg);
+    padding: 2rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+    background: var(--surface);
+    margin-bottom: 1.25rem;
+  }
+  .drop-zone:hover, .drop-zone.over {
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+    border-color: var(--accent);
+  }
+  .drop-zone input { display: none; }
+  .drop-zone i { font-size: 28px; color: var(--text3); display: block; margin-bottom: 8px; }
+  .drop-zone strong { font-size: 14px; color: var(--text); }
+  .drop-zone p { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+  /* Chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 1.25rem; min-height: 0; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 11px; border-radius: 20px;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    border: 1.5px solid; transition: opacity .15s, transform .1s;
+    user-select: none;
+  }
+  .chip:hover { transform: scale(1.03); }
+  .chip.off { opacity: .3; }
+  .chip-x { opacity: .5; font-size: 16px; line-height: 1; margin-left: 1px; }
+  .chip-x:hover { opacity: 1; }
+
+  /* Layout */
+  .layout { display: grid; grid-template-columns: 1fr 300px; gap: 1.25rem; }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+  /* Map */
+  .map-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    position: relative;
+  }
+  #mc { display: block; width: 100%; height: 480px; cursor: crosshair; touch-action: none; }
+  #mc.panning { cursor: grabbing; }
+
+  .map-controls {
+    position: absolute; top: 12px; right: 12px;
+    display: flex; flex-direction: column; gap: 4px; z-index: 8;
+  }
+  .map-btn {
+    width: 32px; height: 32px; border-radius: 6px;
+    background: var(--surface); border: 0.5px solid var(--border2);
+    color: var(--text); cursor: pointer; font-size: 16px;
+    font-family: var(--font); display: flex; align-items: center; justify-content: center;
+    padding: 0; transition: background .12s, transform .08s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .map-btn:hover { background: var(--surface2); }
+  .map-btn:active { transform: scale(0.94); }
+  .map-btn i { font-size: 15px; }
+
+  .zoom-badge {
+    position: absolute; bottom: 12px; right: 12px;
+    background: var(--surface); border: 0.5px solid var(--border);
+    border-radius: 6px; padding: 3px 8px;
+    font-size: 11px; font-family: 'DM Mono', monospace;
+    color: var(--text2); pointer-events: none; z-index: 7;
+  }
+
+  .tip {
+    position: absolute; pointer-events: none; display: none;
+    background: var(--surface); border: 0.5px solid var(--border2);
+    border-radius: var(--radius-md); padding: 8px 12px;
+    font-size: 12px; line-height: 1.8; z-index: 9;
+    white-space: nowrap; font-family: 'DM Mono', monospace;
+    box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  }
+  .tip strong { font-family: var(--font); font-size: 13px; }
+
+  /* Sidebar */
+  .sidebar { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.1rem;
+  }
+
+  .card-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--text3); margin-bottom: .75rem;
+  }
+
+  /* Stats grid */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: var(--surface2); border-radius: var(--radius-md); padding: .6rem .75rem; }
+  .stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+  .stat-value { font-size: 18px; font-weight: 600; color: var(--text); line-height: 1.2; }
+  .stat-unit { font-size: 11px; color: var(--text2); margin-left: 1px; font-weight: 400; }
+
+  /* Sliders */
+  .slider-group { display: flex; flex-direction: column; gap: 10px; }
+  .slider-row { display: flex; align-items: center; gap: 8px; }
+  .slider-row label { font-size: 11px; color: var(--text2); min-width: 72px; text-transform: uppercase; letter-spacing: .04em; }
+  .slider-row input[type=range] {
+    flex: 1; -webkit-appearance: none; appearance: none;
+    height: 4px; background: var(--surface2); border-radius: 2px; outline: none;
+    cursor: pointer;
+  }
+  .slider-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--accent);
+    border: 2px solid var(--surface); cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,.2);
+  }
+  .slider-row input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--surface); cursor: pointer;
+  }
+  .slider-val { font-size: 11px; font-weight: 600; color: var(--text); min-width: 48px; text-align: right; font-family: 'DM Mono', monospace; }
+
+  /* Legend */
+  .legend-bar { width: 100%; height: 8px; border-radius: 4px; display: block; margin-bottom: 4px; }
+  .legend-ticks { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); font-family: 'DM Mono', monospace; }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 0.5px solid var(--border); margin-bottom: .75rem; }
+  .tab {
+    padding: 6px 14px; font-size: 12px; cursor: pointer;
+    color: var(--text2); border-bottom: 2px solid transparent;
+    margin-bottom: -0.5px; font-weight: 500; transition: color .1s;
+  }
+  .tab.on { color: var(--text); border-bottom-color: var(--accent); }
+  .panel { display: none; } .panel.on { display: block; }
+  .chart-wrap { position: relative; width: 100%; height: 160px; }
+
+  /* Empty state */
+  .empty {
+    text-align: center; padding: 3rem 2rem;
+    color: var(--text2); font-size: 14px;
+  }
+  .empty i { font-size: 40px; display: block; margin-bottom: 12px; color: var(--text3); opacity: .5; }
+  .empty p { font-size: 13px; color: var(--text3); margin-top: 6px; }
+
+  /* Responsive full-width charts on mobile */
+  @media (max-width: 800px) {
+    .chart-wrap { height: 140px; }
+    #mc { height: 340px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <i class="ti ti-sail"></i>
+  <h1>FIT Sailing Tracker</h1>
+  <span>— drag &amp; drop .fit files to begin</span>
+</header>
+
+<div class="container">
+  <div class="drop-zone" id="dz">
+    <input type="file" id="fi" multiple accept=".fit">
+    <i class="ti ti-upload"></i>
+    <strong>Drop .fit files here</strong>
+    <p>Click to select — multiple files supported, compared side by side</p>
+  </div>
+
+  <div class="chips" id="chips"></div>
+
+  <div id="main" style="display:none">
+    <div class="layout">
+
+      <!-- Map -->
+      <div class="map-card">
+        <canvas id="mc"></canvas>
+        <div class="tip" id="tip"></div>
+        <div class="map-controls">
+          <button class="map-btn" id="zin" title="Zoom in">+</button>
+          <button class="map-btn" id="zout" title="Zoom out">−</button>
+          <button class="map-btn" id="zreset" title="Reset view"><i class="ti ti-focus-centered"></i></button>
+        </div>
+        <div class="zoom-badge" id="zb">100%</div>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="sidebar">
+
+        <!-- Stats -->
+        <div class="card">
+          <div class="card-title">Session stats</div>
+          <div class="stats" id="stats">
+            <div class="stat"><div class="stat-label">Tracks</div><div class="stat-value" id="sv-tracks">—</div></div>
+            <div class="stat"><div class="stat-label">Max speed</div><div class="stat-value" id="sv-speed">—</div></div>
+            <div class="stat"><div class="stat-label">Distance</div><div class="stat-value" id="sv-dist">—</div></div>
+            <div class="stat"><div class="stat-label">Duration</div><div class="stat-value" id="sv-dur" style="font-size:14px">—</div></div>
+            <div class="stat"><div class="stat-label">Avg HR</div><div class="stat-value" id="sv-hr">—</div></div>
+            <div class="stat"><div class="stat-label">Points</div><div class="stat-value" id="sv-pts">—</div></div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="card">
+          <div class="card-title">Filters</div>
+          <div class="slider-group">
+            <div class="slider-row">
+              <label>Start</label>
+              <input type="range" id="wstart" min="0" max="1000" value="0" step="1">
+              <span class="slider-val" id="wstartv">—</span>
+            </div>
+            <div class="slider-row">
+              <label>End</label>
+              <input type="range" id="wend" min="0" max="1000" value="1000" step="1">
+              <span class="slider-val" id="wendv">—</span>
+            </div>
+            <div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;text-align:center;padding:2px 0 4px;" id="windur">—</div>
+            <div class="slider-row">
+              <label>Min speed</label>
+              <input type="range" id="smin" min="0" max="30" value="0" step="0.1">
+              <span class="slider-val" id="sminv">0.0 kn</span>
+            </div>
+            <div class="slider-row">
+              <label>Max speed</label>
+              <input type="range" id="smax" min="0" max="30" value="30" step="0.1">
+              <span class="slider-val" id="smaxv">30.0 kn</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Colormap -->
+        <div class="card">
+          <div class="card-title">Speed colormap</div>
+          <canvas id="lc" class="legend-bar" height="8"></canvas>
+          <div class="legend-ticks">
+            <span id="l0">0</span><span id="l1"></span><span id="l2">0</span>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="card">
+          <div class="tabs">
+            <div class="tab on" data-p="speed">Speed</div>
+            <div class="tab" data-p="hr">Heart rate</div>
+            <div class="tab" data-p="alt">Altitude</div>
+          </div>
+          <div class="panel on" id="p-speed"><div class="chart-wrap"><canvas id="cs" role="img" aria-label="Speed over time"></canvas></div></div>
+          <div class="panel" id="p-hr"><div class="chart-wrap"><canvas id="ch" role="img" aria-label="Heart rate over time"></canvas></div></div>
+          <div class="panel" id="p-alt"><div class="chart-wrap"><canvas id="ca" role="img" aria-label="Altitude over time"></canvas></div></div>
+          <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:6px;font-family:'DM Mono',monospace;">scroll = zoom · drag = pan · shift+drag = box-zoom · <a href="#" id="creset" style="color:var(--accent);text-decoration:none;">reset</a></div>
+        </div>
+
+      </div><!-- /sidebar -->
+    </div><!-- /layout -->
+  </div><!-- /main -->
+
+  <div class="empty" id="empty">
+    <i class="ti ti-anchor"></i>
+    <strong>No tracks loaded</strong>
+    <p>Drag .fit files from your Garmin, Suunto, or other GPS device onto the drop zone above</p>
+  </div>
+</div>
+
+<script>
+/* ── constants ── */
+const K=11930465, FIT_E=631065600;
+const COLORS=['#1a6fc4','#c4511a','#1a9e6a','#7a4fc4','#c4306e','#b07010','#4a8f1a'];
+const BGS=['#deeaf8','#f8e8de','#daf2ec','#ece8f8','#f8dce9','#f5ecd8','#e8f2d8'];
+const FGS=['#0f4a8a','#8a3510','#0a6e47','#52349a','#8a1f4e','#7a4e08','#2e6010'];
+
+/* ── rainbow colormap (blue→cyan→green→yellow→orange→red) ── */
+function rc(n){
+  n=Math.max(0,Math.min(1,n));
+  const s=[[0,0,1],[0,1,1],[0,1,0],[1,1,0],[1,.5,0],[1,0,0]];
+  const t=n*(s.length-1),i=Math.floor(t),f=t-i;
+  const a=s[Math.min(i,s.length-1)],b=s[Math.min(i+1,s.length-1)];
+  return`rgb(${Math.round((a[0]*(1-f)+b[0]*f)*255)},${Math.round((a[1]*(1-f)+b[1]*f)*255)},${Math.round((a[2]*(1-f)+b[2]*f)*255)})`;
+}
+
+/* ── UTM projection (WGS84) ── */
+function toUTM(lat,lon){
+  const a=6378137,e2=0.00669437999014,k0=0.9996;
+  const z=Math.floor((lon+180)/6)+1,l0=((z-1)*6-180+3)*Math.PI/180;
+  const φ=lat*Math.PI/180,λ=lon*Math.PI/180,Δ=λ-l0;
+  const N=a/Math.sqrt(1-e2*Math.sin(φ)**2),T=Math.tan(φ)**2,C=e2/(1-e2)*Math.cos(φ)**2,A=Math.cos(φ)*Δ;
+  const M=a*((1-e2/4-3*e2**2/64)*φ-(3*e2/8+3*e2**2/32)*Math.sin(2*φ)+(15*e2**2/256)*Math.sin(4*φ));
+  return{
+    x:k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T**2)*A**5/120)+500000,
+    y:k0*(M+N*Math.tan(φ)*(A**2/2+(5-T+9*C+4*C**2)*A**4/24+(61-58*T+T**2)*A**6/720))+(lat<0?1e7:0)
+  };
+}
+
+/* ── FIT binary parser ──
+   Verified field scales (from FIT SDK + empirical testing):
+   Field 253 (timestamp):      uint32, raw + 631065600 = unix seconds
+   Field   0 (position_lat):   sint32, raw / 11930465 = degrees
+   Field   1 (position_long):  sint32, raw / 11930465 = degrees
+   Field  73 (enhanced_speed): uint32, raw / 1000 = m/s → × 1.94384 = knots
+   Field   6 (speed):          uint16, raw / 1000 = m/s (fallback)
+   Field  78 (enhanced_alt):   uint32, raw / 5 − 500 = meters
+   Field   2 (altitude):       uint16, raw / 5 − 500 = meters (fallback)
+   Field   5 (distance):       uint32, raw / 100 = meters
+   Field   3 (heart_rate):     uint8
+*/
+function parseFIT(buf){
+  const b=new Uint8Array(buf);
+  let o=0;
+  const rN=(n,arch)=>{
+    let v=0;
+    if(arch===0){for(let i=0;i<n;i++) v|=b[o+i]<<(i*8);}
+    else{for(let i=0;i<n;i++) v=(v<<8)|b[o+i];}
+    o+=n; return v>>>0;
+  };
+
+  const hSz=b[0];
+  const dSz=(b[4]|b[5]<<8|b[6]<<16|b[7]<<24)>>>0;
+  if(String.fromCharCode(b[8],b[9],b[10],b[11])!=='.FIT') throw new Error('Not a FIT file — check the file is a valid Garmin/Suunto .fit export.');
+  o=hSz;
+
+  const defs={};
+  const out=[];
+  const end=hSz+dSz;
+
+  while(o<end-1){
+    const hdr=b[o++];
+    if(hdr&0x80){ // compressed timestamp record
+      const ln=(hdr>>5)&3,def=defs[ln];
+      if(!def) continue;
+      const row={};
+      for(const f of def.fields) row[f.n]=rN(f.sz,def.arch);
+      if(def.gm===20) out.push(row);
+      continue;
+    }
+    const mt=(hdr>>6)&1,ln=hdr&0xF;
+    if(mt===1){ // definition message
+      const hasDev=(hdr>>5)&1;
+      o++; // reserved
+      const arch=b[o++];
+      const gm=arch===0?(b[o]|b[o+1]<<8):(b[o]<<8|b[o+1]); o+=2;
+      const nf=b[o++];
+      const fields=[];
+      for(let i=0;i<nf;i++){const n=b[o++],sz=b[o++];o++;fields.push({n,sz});}
+      if(hasDev){const nd=b[o++];for(let i=0;i<nd;i++){o+=3;}}
+      defs[ln]={gm,arch,fields};
+    } else { // data message
+      const def=defs[ln];
+      if(!def) continue;
+      const row={_g:def.gm};
+      for(const f of def.fields) row[f.n]=rN(f.sz,def.arch);
+      if(def.gm===20) out.push(row);
+    }
+  }
+
+  return out.map(r=>{
+    const latRaw=r[0],lonRaw=r[1];
+    const lat=(latRaw!==undefined&&(latRaw&0x7FFFFFFF)!==0x7FFFFFFF)?((latRaw|0)/K):null;
+    const lon=(lonRaw!==undefined&&(lonRaw&0x7FFFFFFF)!==0x7FFFFFFF)?((lonRaw|0)/K):null;
+    const sRaw=r[73]!==undefined?r[73]:r[6];
+    const spd=(sRaw!==undefined&&sRaw!==0xFFFFFFFF&&sRaw!==0xFFFF)?(sRaw/1000*1.94384):null;
+    const aRaw=r[78]!==undefined?r[78]:r[2];
+    const alt=(aRaw!==undefined&&aRaw!==0xFFFFFFFF)?(aRaw/5-500):null;
+    const dist=(r[5]!==undefined&&r[5]!==0xFFFFFFFF)?(r[5]/100):null;
+    const hr=(r[3]!==undefined&&r[3]!==0xFF)?r[3]:null;
+    const ts=(r[253]!==undefined&&r[253]!==0xFFFFFFFF)?((r[253]+FIT_E)*1000):null;
+    return{lat,lon,spd,alt,dist,hr,ts};
+  }).filter(p=>p.lat!==null&&p.lon!==null);
+}
+
+/* ── state ── */
+let tracks=[],vis=new Set();
+let gx0,gx1,gy0,gy1,gs0=Infinity,gs1=-Infinity;
+let gt0=Infinity,gt1=-Infinity; // global timestamp window (ms)
+let wstart=0,wend=1,slo=0,shi=30,hov=null; // window as 0..1 fractions of global time span
+let zoom=1,panX=0,panY=0; // map zoom & pan (in canvas pixels)
+let dragging=false,dragStartX=0,dragStartY=0,dragPanX0=0,dragPanY0=0;
+
+function reGlobals(){
+  gx0=gy0=Infinity;gx1=gy1=-Infinity;gs0=Infinity;gs1=-Infinity;
+  gt0=Infinity;gt1=-Infinity;
+  for(const t of tracks){
+    if(!vis.has(t.id)) continue;
+    for(const p of t.pts){
+      if(p.x<gx0)gx0=p.x;if(p.x>gx1)gx1=p.x;
+      if(p.y<gy0)gy0=p.y;if(p.y>gy1)gy1=p.y;
+      if(p.spd!==null){if(p.spd<gs0)gs0=p.spd;if(p.spd>gs1)gs1=p.spd;}
+      if(p.ts){if(p.ts<gt0)gt0=p.ts;if(p.ts>gt1)gt1=p.ts;}
+    }
+  }
+  if(!isFinite(gs0)){gs0=0;gs1=10;}
+  if(!isFinite(gt0)){gt0=0;gt1=1;}
+}
+
+// Convert window fraction (0..1) to absolute ms timestamp
+function winToMs(frac){return gt0+(gt1-gt0)*frac;}
+
+// Test if a point falls within current window
+function inWin(p){
+  if(!p.ts) return true; // include points without timestamps
+  const t0=winToMs(wstart),t1=winToMs(wend);
+  return p.ts>=t0&&p.ts<=t1;
+}
+
+function fmtTs(ms){
+  if(!isFinite(ms)) return '—';
+  const d=new Date(ms);
+  return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function fmtDur(sec){
+  if(!isFinite(sec)||sec<0) return '—';
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=Math.floor(sec%60);
+  return (h>0?h+'h ':'')+m+'m '+s+'s';
+}
+
+/* ── canvas drawing ── */
+const cv=document.getElementById('mc'),cx=cv.getContext('2d');
+const tip=document.getElementById('tip');
+
+function draw(){
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.offsetWidth,H=cv.offsetHeight||480;
+  cv.width=W*dpr;cv.height=H*dpr;
+  cx.scale(dpr,dpr);cx.clearRect(0,0,W,H);
+  if(!tracks.length||!vis.size) return;
+
+  const pd=40,rx=gx1-gx0||1,ry=gy1-gy0||1;
+  const sc=Math.min((W-pd*2)/rx,(H-pd*2)/ry);
+  const ox=(W-rx*sc)/2,oy=(H-ry*sc)/2;
+  // base projection -> apply zoom & pan
+  const tc=(x,y)=>{
+    const bx=(x-gx0)*sc+ox, by=H-((y-gy0)*sc+oy);
+    return [bx*zoom+panX, by*zoom+panY];
+  };
+  const sr=gs1-gs0||1;
+  // clip to canvas bounds when zoomed
+  cx.save();cx.beginPath();cx.rect(0,0,W,H);cx.clip();
+
+  for(const t of tracks){
+    if(!vis.has(t.id)) continue;
+    const pts=t.pts;
+    let lastEndpoint=null;
+    for(let i=1;i<pts.length;i++){
+      const p=pts[i],pp=pts[i-1];
+      if(!inWin(p)||!inWin(pp)) continue;
+      if(p.spd!==null&&(p.spd<slo||p.spd>shi)) continue;
+      const [x1,y1]=tc(pp.x,pp.y),[x2,y2]=tc(p.x,p.y);
+      cx.beginPath();cx.moveTo(x1,y1);cx.lineTo(x2,y2);
+      cx.strokeStyle=p.spd!==null?rc((p.spd-gs0)/sr):t.color;
+      cx.lineWidth=2.5;cx.stroke();
+      lastEndpoint=p;
+    }
+    if(lastEndpoint){
+      const [lx,ly]=tc(lastEndpoint.x,lastEndpoint.y);
+      cx.beginPath();cx.arc(lx,ly,5,0,Math.PI*2);cx.fillStyle=t.color;cx.fill();
+      cx.font='500 11px DM Sans, system-ui, sans-serif';
+      cx.fillStyle=t.color;
+      cx.fillText('▶ '+t.name,lx+9,ly+4);
+    }
+  }
+
+  if(hov){
+    const [hx,hy]=tc(hov.x,hov.y);
+    cx.beginPath();cx.arc(hx,hy,10,0,Math.PI*2);
+    cx.strokeStyle='rgba(255,255,255,.85)';cx.lineWidth=2.5;cx.stroke();
+    cx.beginPath();cx.arc(hx,hy,6,0,Math.PI*2);cx.fillStyle=hov.color;cx.fill();
+  }
+
+  cx.restore();
+  drawLeg();
+}
+
+function drawLeg(){
+  const lc=document.getElementById('lc'),lx=lc.getContext('2d');
+  lc.width=lc.offsetWidth;lc.height=8;
+  const g=lx.createLinearGradient(0,0,lc.width,0);
+  for(let i=0;i<=10;i++) g.addColorStop(i/10,rc(i/10));
+  lx.fillStyle=g;lx.fillRect(0,0,lc.width,8);
+  document.getElementById('l0').textContent=gs0.toFixed(1)+' kn';
+  document.getElementById('l1').textContent=((gs0+gs1)/2).toFixed(1)+' kn';
+  document.getElementById('l2').textContent=gs1.toFixed(1)+' kn';
+}
+
+/* ── stats ── */
+function updateStats(){
+  if(!tracks.length) return;
+  let mx=0,t0=Infinity,t1=-Infinity,td=0,hrs=0,hrc=0,npts=0;
+  for(const t of tracks){
+    if(!vis.has(t.id)) continue;
+    let firstDist=null,lastDist=null;
+    for(let i=0;i<t.pts.length;i++){
+      const p=t.pts[i];
+      if(!inWin(p)) continue;
+      if(p.spd>mx)mx=p.spd;
+      if(p.ts&&p.ts<t0)t0=p.ts;
+      if(p.ts&&p.ts>t1)t1=p.ts;
+      if(p.hr){hrs+=p.hr;hrc++;}
+      if(p.dist!=null){if(firstDist===null) firstDist=p.dist; lastDist=p.dist;}
+      npts++;
+    }
+    if(firstDist!==null&&lastDist!==null) td+=Math.max(0,lastDist-firstDist);
+  }
+  const dur=t1>t0&&isFinite(t0)?(t1-t0)/1000:0;
+  document.getElementById('sv-tracks').textContent=[...vis].length;
+  document.getElementById('sv-speed').innerHTML=mx.toFixed(1)+'<span class="stat-unit">kn</span>';
+  document.getElementById('sv-dist').innerHTML=(td/1000).toFixed(2)+'<span class="stat-unit">km</span>';
+  document.getElementById('sv-dur').textContent=fmtDur(dur);
+  document.getElementById('sv-hr').innerHTML=(hrc?Math.round(hrs/hrc)+'<span class="stat-unit">bpm</span>':'—');
+  document.getElementById('sv-pts').textContent=npts.toLocaleString();
+}
+
+/* ── charts ── */
+function mkChart(id,ds,yL){
+  const existing=Chart.getChart(id);if(existing)existing.destroy();
+  if(!ds.length) return;
+  new Chart(document.getElementById(id),{
+    type:'line',data:{datasets:ds},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      plugins:{
+        legend:{display:ds.length>1,labels:{boxWidth:10,font:{size:11},color:'#888'}},
+        zoom:{
+          zoom:{wheel:{enabled:true},pinch:{enabled:true},drag:{enabled:true,modifierKey:'shift',backgroundColor:'rgba(26,111,196,0.15)',borderColor:'rgba(26,111,196,0.6)',borderWidth:1},mode:'x'},
+          pan:{enabled:true,mode:'x',modifierKey:null}
+        }
+      },
+      scales:{
+        x:{type:'linear',title:{display:true,text:'min',font:{size:10},color:'#888'},
+           ticks:{font:{size:10},color:'#888',callback:v=>v.toFixed(0)},
+           grid:{color:'rgba(128,128,128,.1)'}},
+        y:{title:{display:true,text:yL,font:{size:10},color:'#888'},
+           ticks:{font:{size:10},color:'#888'},
+           grid:{color:'rgba(128,128,128,.1)'}}
+      }}
+  });
+}
+
+function buildDS(key){
+  return tracks.filter(t=>vis.has(t.id)).map(t=>{
+    const filtered=t.pts.filter(p=>inWin(p));
+    const step=Math.max(1,Math.floor(filtered.length/500));
+    const data=[];let t0=null;
+    for(let i=0;i<filtered.length;i+=step){
+      const p=filtered[i];
+      if(p.ts&&t0===null) t0=p.ts;
+      const v=p[key];if(v===null||v===undefined) continue;
+      data.push({x:+((( p.ts-(t0||p.ts))/60000).toFixed(2)),y:+(v.toFixed(2))});
+    }
+    return{label:t.name,data,borderColor:t.color,borderWidth:1.5,pointRadius:0,tension:0.25,fill:false,spanGaps:true};
+  }).filter(d=>d.data.length>0);
+}
+
+function updateCharts(){
+  mkChart('cs',buildDS('spd'),'Speed (kn)');
+  mkChart('ch',buildDS('hr'),'HR (bpm)');
+  mkChart('ca',buildDS('alt'),'Altitude (m)');
+}
+
+function updateWinLabels(){
+  document.getElementById('wstartv').textContent=fmtTs(winToMs(wstart));
+  document.getElementById('wendv').textContent=fmtTs(winToMs(wend));
+  const sec=(winToMs(wend)-winToMs(wstart))/1000;
+  document.getElementById('windur').textContent='window: '+fmtDur(sec);
+}
+
+function render(){reGlobals();updateWinLabels();draw();updateStats();updateCharts();}
+
+/* ── add track ── */
+function addTrack(name,buf){
+  let raw;
+  try{raw=parseFIT(buf);}catch(e){alert('Cannot parse '+name+':\n'+e.message);return;}
+  if(!raw.length){alert('No GPS data found in '+name);return;}
+  const pts=raw.map(p=>{const u=toUTM(p.lat,p.lon);return{...p,...u};});
+  const idx=tracks.length;
+  const id=Date.now()+idx;
+  const color=COLORS[idx%COLORS.length];
+  tracks.push({id,name,pts,color,bg:BGS[idx%BGS.length],fg:FGS[idx%FGS.length]});
+  vis.add(id);
+  const mx=Math.max(...pts.map(p=>p.spd||0));
+  if(mx>shi){
+    shi=Math.ceil(mx+1);
+    ['smax','smin'].forEach(id=>{document.getElementById(id).max=shi+5;});
+    const sm=document.getElementById('smax');sm.value=shi;
+    document.getElementById('smaxv').textContent=shi.toFixed(1)+' kn';
+  }
+  renderChips();
+  document.getElementById('main').style.display='block';
+  document.getElementById('empty').style.display='none';
+  // reset window & zoom to full range when adding a new track
+  wstart=0;wend=1;
+  wsEl.value=0;weEl.value=1000;
+  zoom=1;panX=0;panY=0;updateZoomBadge();
+  render();
+}
+
+/* ── chips ── */
+function renderChips(){
+  const fc=document.getElementById('chips');fc.innerHTML='';
+  for(const t of tracks){
+    const c=document.createElement('span');
+    c.className='chip'+(vis.has(t.id)?'':' off');
+    c.style.cssText=`background:${t.bg};color:${t.fg};border-color:${t.color}`;
+    const nm=document.createElement('span');nm.textContent=t.name;
+    const rm=document.createElement('span');rm.className='chip-x';rm.textContent='×';rm.title='Remove track';
+    c.appendChild(nm);c.appendChild(rm);
+    nm.onclick=()=>{vis.has(t.id)?vis.delete(t.id):vis.add(t.id);renderChips();render();};
+    rm.onclick=e=>{
+      e.stopPropagation();
+      tracks=tracks.filter(tr=>tr.id!==t.id);vis.delete(t.id);renderChips();
+      if(!tracks.length){document.getElementById('main').style.display='none';document.getElementById('empty').style.display='block';}
+      render();
+    };
+    fc.appendChild(c);
+  }
+}
+
+/* ── file handling ── */
+const dz=document.getElementById('dz'),fi=document.getElementById('fi');
+dz.onclick=()=>fi.click();
+dz.ondragover=e=>{e.preventDefault();dz.classList.add('over');};
+dz.ondragleave=()=>dz.classList.remove('over');
+dz.ondrop=e=>{e.preventDefault();dz.classList.remove('over');load(e.dataTransfer.files);};
+fi.onchange=()=>{load(fi.files);fi.value='';};
+function load(files){
+  for(const f of files){
+    const r=new FileReader();
+    r.onload=e=>addTrack(f.name.replace(/\.fit$/i,''),e.target.result);
+    r.readAsArrayBuffer(f);
+  }
+}
+
+/* ── sliders ── */
+const wsEl=document.getElementById('wstart'),weEl=document.getElementById('wend');
+wsEl.oninput=function(){
+  wstart=+this.value/1000;
+  if(wstart>wend){wstart=wend;this.value=Math.round(wstart*1000);}
+  render();
+};
+weEl.oninput=function(){
+  wend=+this.value/1000;
+  if(wend<wstart){wend=wstart;this.value=Math.round(wend*1000);}
+  render();
+};
+document.getElementById('smin').oninput=function(){
+  slo=+this.value;document.getElementById('sminv').textContent=(+this.value).toFixed(1)+' kn';draw();
+};
+document.getElementById('smax').oninput=function(){
+  shi=+this.value;document.getElementById('smaxv').textContent=(+this.value).toFixed(1)+' kn';draw();
+};
+
+/* ── zoom / pan / hover ── */
+function clampPan(){
+  // light constraint so user can't pan track entirely off-screen
+  const W=cv.offsetWidth,H=cv.offsetHeight||480;
+  const limit=Math.max(W,H)*zoom;
+  panX=Math.max(-limit,Math.min(limit,panX));
+  panY=Math.max(-limit,Math.min(limit,panY));
+}
+
+function setZoom(newZoom, focusX, focusY){
+  newZoom=Math.max(1,Math.min(20,newZoom));
+  if(newZoom===zoom) return;
+  // keep point under (focusX, focusY) fixed during zoom
+  const W=cv.offsetWidth,H=cv.offsetHeight||480;
+  const fx=focusX===undefined?W/2:focusX;
+  const fy=focusY===undefined?H/2:focusY;
+  // current base point under focus: bx = (fx - panX) / zoom
+  const bx=(fx-panX)/zoom, by=(fy-panY)/zoom;
+  zoom=newZoom;
+  // want fx = bx*zoom + panX  =>  panX = fx - bx*zoom
+  panX=fx-bx*zoom; panY=fy-by*zoom;
+  if(zoom===1){panX=0;panY=0;}
+  clampPan();
+  updateZoomBadge();
+}
+
+function resetZoom(){zoom=1;panX=0;panY=0;updateZoomBadge();draw();}
+
+function updateZoomBadge(){
+  document.getElementById('zb').textContent=Math.round(zoom*100)+'%';
+}
+
+cv.addEventListener('wheel',e=>{
+  if(!tracks.length) return;
+  e.preventDefault();
+  const rect=cv.getBoundingClientRect();
+  const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+  const factor=e.deltaY<0?1.2:1/1.2;
+  setZoom(zoom*factor,mx,my);
+  draw();
+},{passive:false});
+
+cv.addEventListener('mousedown',e=>{
+  if(!tracks.length||e.button!==0) return;
+  dragging=true;
+  const rect=cv.getBoundingClientRect();
+  dragStartX=e.clientX-rect.left;
+  dragStartY=e.clientY-rect.top;
+  dragPanX0=panX;dragPanY0=panY;
+  cv.classList.add('panning');
+  tip.style.display='none';
+});
+
+window.addEventListener('mouseup',()=>{
+  if(dragging){dragging=false;cv.classList.remove('panning');}
+});
+
+cv.addEventListener('mousemove',e=>{
+  if(!tracks.length) return;
+  const rect=cv.getBoundingClientRect();
+  const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+
+  if(dragging){
+    panX=dragPanX0+(mx-dragStartX);
+    panY=dragPanY0+(my-dragStartY);
+    clampPan();
+    hov=null;tip.style.display='none';
+    draw();
+    return;
+  }
+
+  const W=rect.width,H=rect.height,pd=40;
+  const rx=gx1-gx0||1,ry=gy1-gy0||1,sc=Math.min((W-pd*2)/rx,(H-pd*2)/ry);
+  const ox=(W-rx*sc)/2,oy=(H-ry*sc)/2;
+  let best=null,bd=20;
+  for(const t of tracks){
+    if(!vis.has(t.id)) continue;
+    const inWinPts=t.pts.filter(p=>inWin(p));
+    const step=Math.max(1,Math.floor(inWinPts.length/800));
+    for(let i=0;i<inWinPts.length;i+=step){
+      const p=inWinPts[i];
+      // apply zoom+pan to base coords
+      const bx=(p.x-gx0)*sc+ox, by=H-((p.y-gy0)*sc+oy);
+      const cx2=bx*zoom+panX, cy2=by*zoom+panY;
+      const d=Math.hypot(mx-cx2,my-cy2);
+      if(d<bd){bd=d;best={...p,color:t.color,name:t.name};}
+    }
+  }
+  if(best){
+    hov=best;
+    const spd=best.spd!==null?best.spd.toFixed(2)+' kn':'—';
+    const ts=best.ts?new Date(best.ts).toLocaleTimeString():'';
+    tip.innerHTML=`<strong>${best.name}</strong><br>Speed: ${spd}`
+      +(best.hr?`<br>HR: ${best.hr} bpm`:'')
+      +(best.alt!==null?`<br>Alt: ${Math.round(best.alt)} m`:'')
+      +(ts?`<br>${ts}`:'');
+    tip.style.display='block';
+    let tx=mx+14,ty=my-10;
+    if(tx+180>W) tx=mx-188;
+    if(ty+90>H) ty=H-95;
+    if(ty<0) ty=2;
+    tip.style.left=tx+'px';tip.style.top=ty+'px';
+  } else {
+    hov=null;tip.style.display='none';
+  }
+  draw();
+});
+
+cv.addEventListener('mouseleave',()=>{
+  if(!dragging){hov=null;tip.style.display='none';draw();}
+});
+
+cv.addEventListener('dblclick',e=>{e.preventDefault();resetZoom();});
+
+document.getElementById('zin').onclick=()=>{setZoom(zoom*1.4);draw();};
+document.getElementById('zout').onclick=()=>{setZoom(zoom/1.4);draw();};
+document.getElementById('zreset').onclick=resetZoom;
+
+document.getElementById('creset').onclick=e=>{
+  e.preventDefault();
+  ['cs','ch','ca'].forEach(id=>{const ch=Chart.getChart(id);if(ch&&ch.resetZoom)ch.resetZoom();});
+};
+
+/* ── tabs ── */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');
+    document.getElementById('p-'+t.dataset.p).classList.add('on');
+  };
+});
+
+window.addEventListener('resize',()=>{if(tracks.length) draw();});
+</script>
+</body>
+</html>
