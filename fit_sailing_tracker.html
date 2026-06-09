@@ -470,6 +470,7 @@ let wstart=0,wend=1,slo=0,shi=30,hov=null; // window as 0..1 fractions of global
 let zoom=1,panX=0,panY=0; // map zoom & pan (in canvas pixels)
 let dragging=false,dragStartX=0,dragStartY=0,dragPanX0=0,dragPanY0=0;
 let selectedPoints=[]; // for distance measurement
+let measurementBadgePos={x:0,y:0}; // position of measurement badge
 
 function reGlobals(){
   gx0=gy0=Infinity;gx1=gy1=-Infinity;gs0=Infinity;gs1=-Infinity;
@@ -521,8 +522,10 @@ function calculateMeasurement(){
     const pts=track.pts;
     const startIdx=Math.min(p1.pointIdx, p2.pointIdx);
     const endIdx=Math.max(p1.pointIdx, p2.pointIdx);
-    if(pts[startIdx].dist!==null && pts[endIdx].dist!==null){
-      distanceMeters=Math.max(0,pts[endIdx].dist-pts[startIdx].dist);
+    if(startIdx>=0 && endIdx<pts.length){
+      if(pts[startIdx].dist!==null && pts[endIdx].dist!==null){
+        distanceMeters=Math.max(0,pts[endIdx].dist-pts[startIdx].dist);
+      }
     }
   }
   
@@ -599,14 +602,6 @@ function draw(){
     cx.fillText(i+1,spx,spy);
   }
 
-  // Draw line between selected points
-  if(selectedPoints.length===2){
-    const [p1x,p1y]=tc(selectedPoints[0].x,selectedPoints[0].y);
-    const [p2x,p2y]=tc(selectedPoints[1].x,selectedPoints[1].y);
-    cx.beginPath();cx.moveTo(p1x,p1y);cx.lineTo(p2x,p2y);
-    cx.strokeStyle='rgba(26,111,196,0.5)';cx.lineWidth=2;cx.setLineDash([5,5]);cx.stroke();cx.setLineDash([]);
-  }
-
   if(hov){
     const [hx,hy]=tc(hov.x,hov.y);
     cx.beginPath();cx.arc(hx,hy,10,0,Math.PI*2);
@@ -615,6 +610,16 @@ function draw(){
   }
 
   cx.restore();
+  
+  // Position measurement badge between the two points if selected
+  if(selectedPoints.length===2){
+    const [p1x,p1y]=tc(selectedPoints[0].x,selectedPoints[0].y);
+    const [p2x,p2y]=tc(selectedPoints[1].x,selectedPoints[1].y);
+    const midX=(p1x+p2x)/2;
+    const midY=(p1y+p2y)/2;
+    measurementBadgePos={x:midX,y:midY};
+  }
+  
   drawLeg();
 }
 
@@ -941,6 +946,17 @@ cv.addEventListener('click',e=>{
     const badge=document.getElementById('mbadge');
     badge.innerHTML=`<strong>Measurement</strong><br>Distance: ${distKm.toFixed(2)} km<br>Time: ${fmtDur(measurement.time)}`;
     badge.style.display='block';
+    
+    // Position badge at midpoint
+    let tx=measurementBadgePos.x+14;
+    let ty=measurementBadgePos.y-10;
+    const rect=cv.getBoundingClientRect();
+    const W=rect.width,H=rect.height;
+    if(tx+160>W) tx=measurementBadgePos.x-174;
+    if(ty+80>H) ty=H-85;
+    if(ty<0) ty=2;
+    badge.style.left=tx+'px';
+    badge.style.top=ty+'px';
   }
   
   draw();
