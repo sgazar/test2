@@ -163,6 +163,16 @@
   }
   .tip strong { font-family: var(--font); font-size: 13px; }
 
+  .measurement-badge {
+    position: absolute; pointer-events: none; display: none;
+    background: var(--surface); border: 1.5px solid var(--accent);
+    border-radius: var(--radius-md); padding: 10px 14px;
+    font-size: 12px; line-height: 1.6; z-index: 9;
+    font-family: 'DM Mono', monospace;
+    box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  }
+  .measurement-badge strong { font-family: var(--font); font-size: 13px; color: var(--accent); }
+
   /* Sidebar */
   .sidebar { display: flex; flex-direction: column; gap: 1.25rem; }
 
@@ -261,6 +271,7 @@
       <div class="map-card">
         <canvas id="mc"></canvas>
         <div class="tip" id="tip"></div>
+        <div class="measurement-badge" id="mbadge"></div>
         <div class="map-controls">
           <button class="map-btn" id="zin" title="Zoom in">+</button>
           <button class="map-btn" id="zout" title="Zoom out">−</button>
@@ -332,7 +343,7 @@
           <div class="panel on" id="p-speed"><div class="chart-wrap"><canvas id="cs" role="img" aria-label="Speed over time"></canvas></div></div>
           <div class="panel" id="p-hr"><div class="chart-wrap"><canvas id="ch" role="img" aria-label="Heart rate over time"></canvas></div></div>
           <div class="panel" id="p-alt"><div class="chart-wrap"><canvas id="ca" role="img" aria-label="Altitude over time"></canvas></div></div>
-          <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:6px;font-family:'DM Mono',monospace;">scroll = zoom · drag = pan · shift+drag = box-zoom · <a href="#" id="creset" style="color:var(--accent);text-decoration:none;">reset</a></div>
+          <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:6px;font-family:'DM Mono',monospace;">scroll = zoom · drag = pan · shift+drag = box-zoom · <a href="#" id="crese[...]
         </div>
 
       </div><!-- /below -->
@@ -417,7 +428,7 @@ function parseFIT(buf){
       continue;
     }
     const mt=(hdr>>6)&1,ln=hdr&0xF;
-    if(mt===1){ // definition message
+    if(mt===1){ // Definition message
       const hasDev=(hdr>>5)&1;
       o++; // reserved
       const arch=b[o++];
@@ -458,6 +469,7 @@ let gt0=Infinity,gt1=-Infinity; // global timestamp window (ms)
 let wstart=0,wend=1,slo=0,shi=30,hov=null; // window as 0..1 fractions of global time span
 let zoom=1,panX=0,panY=0; // map zoom & pan (in canvas pixels)
 let dragging=false,dragStartX=0,dragStartY=0,dragPanX0=0,dragPanY0=0;
+let selectedPoints=[]; // for distance measurement
 
 function reGlobals(){
   gx0=gy0=Infinity;gx1=gy1=-Infinity;gs0=Infinity;gs1=-Infinity;
@@ -497,9 +509,36 @@ function fmtDur(sec){
   return (h>0?h+'h ':'')+m+'m '+s+'s';
 }
 
+/* ── measurement helpers ── */
+function calculateMeasurement(){
+  if(selectedPoints.length<2) return null;
+  const p1=selectedPoints[0], p2=selectedPoints[1];
+  
+  // Calculate distance using track distance field if available
+  let distanceMeters=0;
+  if(p1.trackIdx!==undefined && p2.trackIdx!==undefined && p1.trackIdx===p2.trackIdx){
+    const track=tracks[p1.trackIdx];
+    const pts=track.pts;
+    const startIdx=Math.min(p1.pointIdx, p2.pointIdx);
+    const endIdx=Math.max(p1.pointIdx, p2.pointIdx);
+    if(pts[startIdx].dist!==null && pts[endIdx].dist!==null){
+      distanceMeters=Math.max(0,pts[endIdx].dist-pts[startIdx].dist);
+    }
+  }
+  
+  // Calculate time
+  let timeSeconds=0;
+  if(p1.ts && p2.ts){
+    timeSeconds=(Math.abs(p2.ts-p1.ts))/1000;
+  }
+  
+  return {distance:distanceMeters, time:timeSeconds, p1, p2};
+}
+
 /* ── canvas drawing ── */
 const cv=document.getElementById('mc'),cx=cv.getContext('2d');
 const tip=document.getElementById('tip');
+const mbadge=document.getElementById('mbadge');
 
 function draw(){
   const dpr=window.devicePixelRatio||1;
@@ -541,6 +580,31 @@ function draw(){
       cx.fillStyle=t.color;
       cx.fillText('▶ '+t.name,lx+9,ly+4);
     }
+  }
+
+  // Draw selected measurement points
+  for(let i=0;i<selectedPoints.length;i++){
+    const sp=selectedPoints[i];
+    const [spx,spy]=tc(sp.x,sp.y);
+    cx.beginPath();cx.arc(spx,spy,12,0,Math.PI*2);
+    cx.strokeStyle=i===0?'#22c55e':'#ef4444';cx.lineWidth=3;cx.stroke();
+    cx.beginPath();cx.arc(spx,spy,4,0,Math.PI*2);
+    cx.fillStyle=i===0?'#22c55e':'#ef4444';cx.fill();
+    
+    // Draw number label
+    cx.font='600 12px DM Sans, system-ui, sans-serif';
+    cx.fillStyle='white';
+    cx.textAlign='center';
+    cx.textBaseline='middle';
+    cx.fillText(i+1,spx,spy);
+  }
+
+  // Draw line between selected points
+  if(selectedPoints.length===2){
+    const [p1x,p1y]=tc(selectedPoints[0].x,selectedPoints[0].y);
+    const [p2x,p2y]=tc(selectedPoints[1].x,selectedPoints[1].y);
+    cx.beginPath();cx.moveTo(p1x,p1y);cx.lineTo(p2x,p2y);
+    cx.strokeStyle='rgba(26,111,196,0.5)';cx.lineWidth=2;cx.setLineDash([5,5]);cx.stroke();cx.setLineDash([]);
   }
 
   if(hov){
@@ -811,7 +875,8 @@ cv.addEventListener('mousemove',e=>{
   const rx=gx1-gx0||1,ry=gy1-gy0||1,sc=Math.min((W-pd*2)/rx,(H-pd*2)/ry);
   const ox=(W-rx*sc)/2,oy=(H-ry*sc)/2;
   let best=null,bd=20;
-  for(const t of tracks){
+  for(let ti=0;ti<tracks.length;ti++){
+    const t=tracks[ti];
     if(!vis.has(t.id)) continue;
     const inWinPts=t.pts.filter(p=>inWin(p));
     const step=Math.max(1,Math.floor(inWinPts.length/800));
@@ -821,7 +886,11 @@ cv.addEventListener('mousemove',e=>{
       const bx=(p.x-gx0)*sc+ox, by=H-((p.y-gy0)*sc+oy);
       const cx2=bx*zoom+panX, cy2=by*zoom+panY;
       const d=Math.hypot(mx-cx2,my-cy2);
-      if(d<bd){bd=d;best={...p,color:t.color,name:t.name};}
+      if(d<bd){
+        bd=d;
+        const pointIdx=t.pts.indexOf(p);
+        best={...p,color:t.color,name:t.name,trackIdx:ti,pointIdx};
+      }
     }
   }
   if(best){
@@ -846,6 +915,42 @@ cv.addEventListener('mousemove',e=>{
 
 cv.addEventListener('mouseleave',()=>{
   if(!dragging){hov=null;tip.style.display='none';draw();}
+});
+
+cv.addEventListener('click',e=>{
+  if(!tracks.length||e.button!==0||dragging) return;
+  if(!hov) return;
+  
+  // Check if this point is already selected
+  const isAlreadySelected=selectedPoints.some(sp=>sp.pointIdx===hov.pointIdx&&sp.trackIdx===hov.trackIdx);
+  if(isAlreadySelected) return;
+  
+  // Add point if we have less than 2
+  if(selectedPoints.length<2){
+    selectedPoints.push({...hov});
+  } else {
+    // Replace the first point if we already have 2
+    selectedPoints[0]=selectedPoints[1];
+    selectedPoints[1]={...hov};
+  }
+  
+  // Show measurement badge if we have 2 points
+  const measurement=calculateMeasurement();
+  if(measurement){
+    const distKm=measurement.distance/1000;
+    const badge=document.getElementById('mbadge');
+    badge.innerHTML=`<strong>Measurement</strong><br>Distance: ${distKm.toFixed(2)} km<br>Time: ${fmtDur(measurement.time)}`;
+    badge.style.display='block';
+  }
+  
+  draw();
+});
+
+cv.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  selectedPoints=[];
+  mbadge.style.display='none';
+  draw();
 });
 
 cv.addEventListener('dblclick',e=>{e.preventDefault();resetZoom();});
