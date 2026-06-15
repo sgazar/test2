@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
     --bg: #F2EBDC;
@@ -756,7 +757,7 @@
       <div class="subtitle">Invägning · Resultat · Sammanställning</div>
     </div>
     <div class="header-actions">
-      <button class="btn btn-secondary btn-small" id="loadDemo">Ladda junihugget-data</button>
+      <button class="btn btn-brass btn-small" id="exportExcel">Exportera till Excel</button>
       <button class="btn btn-secondary btn-small btn-danger" id="resetAll">Nollställ</button>
     </div>
   </header>
@@ -920,22 +921,22 @@ const STORAGE_KEY = 'fishing-tournament-v1';
 let state = { teams: [], catches: [] };
 let currentFilter = 'all';
 
-// --- Storage ---
-async function loadState() {
+// --- Storage (localStorage so data persists between sessions on this device) ---
+function loadState() {
   try {
-    const result = await window.storage.get(STORAGE_KEY);
-    if (result && result.value) {
-      const parsed = JSON.parse(result.value);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
       state = { teams: parsed.teams || [], catches: parsed.catches || [] };
     }
   } catch (e) {
-    // Key doesn't exist yet — use empty state
+    // No data yet or storage unavailable — use empty state
   }
 }
 
-async function saveState() {
+function saveState() {
   try {
-    await window.storage.set(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     toast('Kunde inte spara');
   }
@@ -1340,44 +1341,89 @@ async function resetAll() {
   toast('Allt nollställt');
 }
 
-async function loadDemo() {
-  if (state.teams.length > 0 || state.catches.length > 0) {
-    if (!confirm('Detta ersätter all nuvarande data med junihugget-resultaten. Fortsätt?')) return;
+function exportExcel() {
+  if (state.teams.length === 0 && state.catches.length === 0) {
+    toast('Inget att exportera än');
+    return;
   }
-  state = buildDemoData();
-  await saveState();
-  render();
-  toast('Junihugget-data inladdad');
-}
+  if (typeof XLSX === 'undefined') {
+    toast('Excel-bibliotek kunde inte laddas');
+    return;
+  }
 
-function buildDemoData() {
-  const teams = [
-    'Senga','Jennie','Löjfeber','Jangeby','Dorotea','Backman','Texas',
-    'Gunnarsson','Black pearl','Rc','Stenvall','Kajo','Utterjägarna',
-    'Karlsson','Duncan','Larsson','Röding pärlan'
+  const wb = XLSX.utils.book_new();
+
+  // 1. Per-team summary
+  const teamData = {};
+  state.teams.forEach(t => {
+    teamData[t] = { total: 0, count: 0, biggest: { 'röding': null, 'lax': null, 'öring': null } };
+  });
+  state.catches.forEach(c => {
+    if (!teamData[c.team]) {
+      teamData[c.team] = { total: 0, count: 0, biggest: { 'röding': null, 'lax': null, 'öring': null } };
+    }
+    teamData[c.team].total += c.weight;
+    teamData[c.team].count += 1;
+    if (teamData[c.team].biggest[c.species] == null || c.weight > teamData[c.team].biggest[c.species]) {
+      teamData[c.team].biggest[c.species] = c.weight;
+    }
+  });
+
+  const rows = Object.entries(teamData)
+    .map(([team, d]) => ({ team, ...d }))
+    .sort((a, b) => b.total - a.total || a.team.localeCompare(b.team, 'sv'));
+
+  const summaryRows = [
+    ['Plac', 'Lag', 'Antal fångster', 'Störst röding (g)', 'Störst lax (g)', 'Störst öring (g)', 'Totalvikt (g)']
   ];
-  const raw = [
-    ['Kajo','röding',2788],['Jennie','röding',2784],['Gunnarsson','röding',2542],
-    ['Utterjägarna','röding',1880],['Senga','röding',1808],['Backman','röding',1708],
-    ['Karlsson','röding',1620],['Dorotea','röding',1608],['Dorotea','röding',1570],
-    ['Stenvall','röding',1528],['Stenvall','röding',1508],['Duncan','röding',1376],
-    ['Dorotea','röding',1358],['Rc','röding',1216],
-    ['Senga','lax',4730],['Löjfeber','lax',3368],['Backman','lax',3258],
-    ['Jangeby','lax',3142],['Texas','lax',3018],['Löjfeber','lax',2760],
-    ['Jangeby','lax',2590],['Rc','lax',2516],['Black pearl','lax',2488],
-    ['Backman','lax',2368],['Jennie','lax',2350],['Jennie','lax',2220],
-    ['Dorotea','öring',3330],['Jangeby','öring',2536],['Jennie','öring',2250],
-    ['Larsson','öring',2215],['Löjfeber','öring',1942],['Gunnarsson','öring',1850],
-    ['Röding pärlan','öring',1734],['Texas','öring',1692],['Black pearl','öring',1686],
-    ['Löjfeber','öring',1560]
-  ];
-  const now = Date.now();
-  const catches = raw.map((r, i) => ({
-    id: 'demo_' + i,
-    team: r[0], species: r[1], weight: r[2],
-    time: now - (raw.length - i) * 60000
-  }));
-  return { teams, catches };
+  rows.forEach((r, i) => {
+    summaryRows.push([
+      i + 1,
+      r.team,
+      r.count,
+      r.biggest['röding'] != null ? r.biggest['röding'] : '',
+      r.biggest['lax'] != null ? r.biggest['lax'] : '',
+      r.biggest['öring'] != null ? r.biggest['öring'] : '',
+      r.total
+    ]);
+  });
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+  wsSummary['!cols'] = [{wch: 6}, {wch: 20}, {wch: 14}, {wch: 18}, {wch: 18}, {wch: 18}, {wch: 14}];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Sammanställning');
+
+  // 2-4. Per species rankings
+  SPECIES.forEach(sp => {
+    const catches = state.catches
+      .filter(c => c.species === sp.key)
+      .sort((a, b) => b.weight - a.weight);
+    const data = [['Plac', 'Lag', 'Vikt (g)']];
+    catches.forEach((c, i) => data.push([i + 1, c.team, c.weight]));
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch: 6}, {wch: 20}, {wch: 14}];
+    const sheetName = 'Störst ' + sp.label.toLowerCase();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  // 5. Full catch log
+  const allData = [['Datum', 'Tid', 'Lag', 'Art', 'Vikt (g)']];
+  const sortedCatches = [...state.catches].sort((a, b) => (a.time || 0) - (b.time || 0));
+  sortedCatches.forEach(c => {
+    const d = c.time ? new Date(c.time) : null;
+    allData.push([
+      d ? d.toLocaleDateString('sv-SE') : '',
+      d ? d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }) : '',
+      c.team,
+      speciesLabel(c.species),
+      c.weight
+    ]);
+  });
+  const wsAll = XLSX.utils.aoa_to_sheet(allData);
+  wsAll['!cols'] = [{wch: 12}, {wch: 8}, {wch: 20}, {wch: 12}, {wch: 14}];
+  XLSX.utils.book_append_sheet(wb, wsAll, 'Alla fångster');
+
+  const today = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, 'Fisketavling_' + today + '.xlsx');
+  toast('Excel exporterad');
 }
 
 // --- Wire up ---
@@ -1390,7 +1436,7 @@ document.getElementById('catchWeight').addEventListener('keydown', e => {
   if (e.key === 'Enter') addCatch();
 });
 document.getElementById('resetAll').addEventListener('click', resetAll);
-document.getElementById('loadDemo').addEventListener('click', loadDemo);
+document.getElementById('exportExcel').addEventListener('click', exportExcel);
 
 // Modal handlers
 document.getElementById('saveEdit').addEventListener('click', saveEdit);
@@ -1408,10 +1454,8 @@ document.addEventListener('keydown', e => {
 });
 
 // --- Init ---
-(async () => {
-  await loadState();
-  render();
-})();
+loadState();
+render();
 </script>
 </body>
 </html>
