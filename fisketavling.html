@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fisketävling – Invägning & Resultat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F2EBDC;
+    --bg-card: #FBF7EC;
+    --ink: #0E1B2C;
+    --ink-muted: #4A5568;
+    --brass: #B8924F;
+    --brass-dark: #8E6F38;
+    --water: #6B8FA3;
+    --water-dark: #4A6C82;
+    --rule: rgba(14, 27, 44, 0.12);
+    --rule-strong: rgba(14, 27, 44, 0.22);
+    --danger: #A03A2B;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+
+  header.page {
+    border-bottom: 1px solid var(--rule-strong);
+    padding-bottom: 20px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: clamp(36px, 5.5vw, 60px);
+    line-height: 0.95;
+    letter-spacing: -0.025em;
+    margin: 0;
+    font-variation-settings: "opsz" 144;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-top: 8px;
+    font-weight: 500;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .stat-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    margin-bottom: 24px;
+    background: var(--ink);
+    color: var(--bg);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .stat-item {
+    padding: 16px 22px;
+    border-right: 1px solid rgba(255,255,255,0.08);
+  }
+  .stat-item:last-child { border-right: 0; }
+
+  .stat-item .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    opacity: 0.65;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+
+  .stat-item .value {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-item .value .unit {
+    font-size: 13px;
+    opacity: 0.6;
+    margin-left: 2px;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--rule-strong);
+    margin-bottom: 24px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    padding: 12px 18px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .tab:hover {
+    color: var(--ink);
+  }
+
+  .tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--brass);
+  }
+
+  .tab-count {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    background: var(--rule);
+    color: var(--ink-muted);
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tab.active .tab-count {
+    background: var(--brass);
+    color: white;
+  }
+
+  .tab-panel {
+    display: none;
+  }
+  .tab-panel.active {
+    display: block;
+  }
+
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .panel h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 24px;
+    margin: 0;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+
+  .panel-intro {
+    color: var(--ink-muted);
+    font-size: 14px;
+    margin-top: 6px;
+    margin-bottom: 4px;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--brass-dark);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  /* Two-column form layout for wider tabs */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    margin-top: 16px;
+  }
+  @media (max-width: 720px) {
+    .form-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Forms */
+  .field { display: block; margin-bottom: 12px; }
+
+  .field label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-muted);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  select {
+    width: 100%;
+    padding: 11px 12px;
+    background: white;
+    border: 1px solid var(--rule-strong);
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--ink);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--brass);
+    box-shadow: 0 0 0 3px rgba(184, 146, 79, 0.18);
+  }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 16px;
+    background: var(--ink);
+    color: var(--bg);
+    border: none;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.05s;
+  }
+  .btn:hover { background: var(--water-dark); }
+  .btn:active { transform: translateY(1px); }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--rule-strong);
+  }
+  .btn-secondary:hover { background: rgba(14,27,44,0.06); }
+
+  .btn-brass {
+    background: var(--brass);
+    color: white;
+  }
+  .btn-brass:hover { background: var(--brass-dark); }
+
+  .btn-full { width: 100%; margin-top: 4px; }
+  .btn-small { padding: 5px 11px; font-size: 12px; }
+  .btn-danger { color: var(--danger); }
+  .btn-danger:hover { background: rgba(160, 58, 43, 0.08); color: var(--danger); }
+
+  /* Teams */
+  .teams-section {
+    border-left: 1px solid var(--rule);
+    padding-left: 28px;
+  }
+  @media (max-width: 720px) {
+    .teams-section { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); padding-top: 20px; }
+  }
+
+  .teams-section h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 18px;
+    margin: 0 0 12px;
+  }
+
+  .team-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .team-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 6px 5px 12px;
+    background: white;
+    border: 1px solid var(--rule-strong);
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .team-chip button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--ink-muted);
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 6px;
+    border-radius: 50%;
+  }
+  .team-chip button:hover { color: var(--danger); }
+
+  /* Trophies */
+  .trophies {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  @media (max-width: 600px) {
+    .trophies { grid-template-columns: 1fr; }
+  }
+
+  .trophy {
+    background: white;
+    border: 1px solid var(--rule);
+    padding: 20px 18px;
+    position: relative;
+    border-top: 3px solid var(--brass);
+  }
+
+  .trophy-species {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--brass-dark);
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .trophy-team {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1.05;
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+
+  .trophy-weight {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .trophy-weight .unit { color: var(--ink-muted); margin-left: 2px; font-size: 12px; }
+
+  .trophy.empty { border-top-color: var(--rule-strong); }
+  .trophy.empty .trophy-team {
+    color: var(--ink-muted);
+    font-style: italic;
+  }
+  .trophy.empty .trophy-weight { color: var(--ink-muted); }
+
+  /* Leaderboard */
+  .leaderboard {
+    margin-top: 14px;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .lb-row {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: white;
+    border-bottom: 1px solid var(--rule);
+  }
+  .lb-row:last-child { border-bottom: 0; }
+
+  .lb-row.header {
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-weight: 600;
+    padding: 10px 16px;
+    border-bottom: 0;
+  }
+
+  .lb-rank {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .lb-row.gold {
+    background: linear-gradient(to right, rgba(184, 146, 79, 0.10), white 35%);
+  }
+  .lb-row.gold .lb-rank { color: var(--brass-dark); }
+
+  .lb-team {
+    font-weight: 600;
+    font-size: 16px;
+  }
+
+  .lb-detail {
+    font-size: 12px;
+    color: var(--ink-muted);
+    font-weight: 400;
+    margin-top: 2px;
+  }
+
+  .lb-weight {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 17px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .lb-weight .unit {
+    font-size: 11px;
+    color: var(--ink-muted);
+    margin-left: 3px;
+  }
+
+  /* Per-team summary table */
+  .team-summary {
+    margin-top: 14px;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow-x: auto;
+  }
+
+  .team-summary table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    min-width: 560px;
+  }
+
+  .team-summary th {
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 600;
+    padding: 12px 14px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .team-summary th.num { text-align: right; }
+
+  .team-summary td {
+    padding: 14px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 14px;
+    vertical-align: middle;
+  }
+  .team-summary tr:last-child td { border-bottom: 0; }
+
+  .team-summary .rank-cell {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    font-variant-numeric: tabular-nums;
+    width: 50px;
+    line-height: 1;
+  }
+
+  .team-summary .team-cell {
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  .team-summary td.num {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .team-summary td.num .unit {
+    color: var(--ink-muted);
+    font-size: 11px;
+    margin-left: 2px;
+  }
+
+  .team-summary td.total {
+    font-weight: 700;
+    background: rgba(14, 27, 44, 0.04);
+    font-size: 15px;
+  }
+
+  .team-summary td.winner-cell {
+    color: var(--brass-dark);
+    font-weight: 700;
+  }
+  .team-summary td.winner-cell .unit { color: var(--brass-dark); opacity: 0.7; }
+  .team-summary td.winner-cell::after {
+    content: ' ★';
+    color: var(--brass);
+    font-size: 12px;
+  }
+
+  .team-summary td.none {
+    color: var(--ink-muted);
+  }
+
+  .team-summary tr.gold-row {
+    background: linear-gradient(to right, rgba(184, 146, 79, 0.10), transparent 50%);
+  }
+  .team-summary tr.gold-row .rank-cell {
+    color: var(--brass-dark);
+  }
+
+  .legend {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--ink-muted);
+  }
+  .legend .star { color: var(--brass); font-weight: 700; }
+
+  /* Filter row for catches */
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+  .filter-chip {
+    background: white;
+    border: 1px solid var(--rule-strong);
+    border-radius: 100px;
+    padding: 5px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--ink-muted);
+    transition: all 0.15s;
+  }
+  .filter-chip:hover { color: var(--ink); }
+  .filter-chip.active {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+
+  /* Catches log */
+  .catches {
+    margin-top: 16px;
+  }
+
+  .catch-row {
+    display: grid;
+    grid-template-columns: 1fr 110px 100px 72px;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 14px;
+  }
+  .catch-row:last-child { border-bottom: 0; }
+
+  .catch-team {
+    font-weight: 600;
+  }
+
+  .catch-meta {
+    font-size: 11px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+  }
+
+  .catch-species-tag {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-muted);
+    font-weight: 600;
+  }
+
+  .catch-weight {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    font-weight: 500;
+  }
+  .catch-weight .unit { color: var(--ink-muted); font-size: 11px; margin-left: 2px; }
+
+  .catch-actions {
+    display: flex;
+    gap: 2px;
+    justify-content: flex-end;
+  }
+
+  .catch-edit,
+  .catch-delete {
+    border: none;
+    background: transparent;
+    color: var(--ink-muted);
+    cursor: pointer;
+    padding: 6px 8px;
+    line-height: 1;
+    border-radius: 3px;
+    font-size: 15px;
+  }
+  .catch-edit:hover { color: var(--brass-dark); background: rgba(184, 146, 79, 0.08); }
+  .catch-delete:hover { color: var(--danger); background: rgba(160, 58, 43, 0.06); }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(14, 27, 44, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 16px;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+  .modal-overlay.show { display: flex; }
+
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--rule-strong);
+    border-radius: 4px;
+    padding: 28px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: 0 20px 50px rgba(14, 27, 44, 0.35);
+    animation: modalIn 0.18s ease-out;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .modal h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 26px;
+    margin: 4px 0 4px;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+
+  .modal-intro {
+    color: var(--ink-muted);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 480px) {
+    .modal-actions { justify-content: stretch; }
+    .modal-actions .btn { flex: 1; }
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--ink-muted);
+    padding: 36px 16px;
+    font-style: italic;
+    font-size: 14px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink);
+    color: var(--bg);
+    padding: 11px 20px;
+    border-radius: 3px;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s, transform 0.18s;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(14, 27, 44, 0.25);
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="page">
+    <div>
+      <h1 class="title">Fisketävling</h1>
+      <div class="subtitle">Invägning · Resultat · Sammanställning</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-small" id="loadDemo">Ladda junihugget-data</button>
+      <button class="btn btn-secondary btn-small btn-danger" id="resetAll">Nollställ</button>
+    </div>
+  </header>
+
+  <div class="stat-strip">
+    <div class="stat-item">
+      <div class="label">Lag</div>
+      <div class="value" id="statTeams">0</div>
+    </div>
+    <div class="stat-item">
+      <div class="label">Fångster</div>
+      <div class="value" id="statCatches">0</div>
+    </div>
+    <div class="stat-item">
+      <div class="label">Total vikt</div>
+      <div class="value"><span id="statTotal">0</span><span class="unit"> g</span></div>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-tab="lag">Lag <span class="tab-count" id="tabCountTeams">0</span></button>
+    <button class="tab" role="tab" data-tab="invagning">Invägning</button>
+    <button class="tab" role="tab" data-tab="resultat">Resultat</button>
+    <button class="tab" role="tab" data-tab="sammanstallning">Sammanställning <span class="tab-count" id="tabCountCatches">0</span></button>
+  </div>
+
+  <!-- Tab: Lag -->
+  <div class="tab-panel active" id="panel-lag" role="tabpanel">
+    <div class="panel">
+      <div class="eyebrow">Steg 1</div>
+      <h2>Hantera lag</h2>
+      <p class="panel-intro">Lägg till lagen som deltar i tävlingen. Lag kan tas bort när som helst — alla fångster för det laget tas också bort.</p>
+      <div class="form-grid">
+        <div>
+          <div class="field" style="margin-top: 8px">
+            <label for="teamName">Lagets namn</label>
+            <input type="text" id="teamName" placeholder="t.ex. Senga" autocomplete="off">
+          </div>
+          <button class="btn btn-full" id="addTeam">Lägg till lag</button>
+        </div>
+        <div class="teams-section">
+          <h3>Anmälda lag <span style="color: var(--ink-muted); font-weight: 400; font-size: 14px;" id="teamCountInline">(0)</span></h3>
+          <ul class="team-list" id="teamList"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Invägning -->
+  <div class="tab-panel" id="panel-invagning" role="tabpanel">
+    <div class="panel">
+      <div class="eyebrow">Steg 2</div>
+      <h2>Invägning</h2>
+      <p class="panel-intro">Registrera en fångst genom att välja lag, art och ange vikten i gram.</p>
+      <div style="margin-top: 16px; max-width: 520px;">
+        <div class="field">
+          <label for="catchTeam">Lag</label>
+          <select id="catchTeam">
+            <option value="">Välj lag…</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="catchSpecies">Art</label>
+            <select id="catchSpecies">
+              <option value="röding">Röding</option>
+              <option value="lax">Lax</option>
+              <option value="öring">Öring</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="catchWeight">Vikt (g)</label>
+            <input type="number" id="catchWeight" placeholder="0" min="1" inputmode="numeric">
+          </div>
+        </div>
+        <button class="btn btn-brass btn-full" id="addCatch">Registrera fångst</button>
+      </div>
+      <div id="lastCatchHint" style="margin-top: 18px; font-size: 13px; color: var(--ink-muted); display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Tab: Resultat -->
+  <div class="tab-panel" id="panel-resultat" role="tabpanel">
+    <div class="panel">
+      <div class="eyebrow">Störst per art</div>
+      <h2>Topphugg</h2>
+      <div class="trophies" id="trophies"></div>
+    </div>
+
+    <div class="panel">
+      <div class="eyebrow">Sammanlagd vikt</div>
+      <h2>Tabell</h2>
+      <div class="leaderboard" id="leaderboard"></div>
+    </div>
+  </div>
+
+  <!-- Tab: Sammanställning -->
+  <div class="tab-panel" id="panel-sammanstallning" role="tabpanel">
+    <div class="panel">
+      <div class="eyebrow">Per lag</div>
+      <h2>Sammanställning</h2>
+      <p class="panel-intro">Sorterat på sammanlagd vikt. Lagets största fisk i varje art visas — markerade med <span class="star" style="color: var(--brass); font-weight: 700;">★</span> om det är den största i hela tävlingen.</p>
+      <div id="teamSummary"></div>
+    </div>
+
+    <div class="panel">
+      <div class="eyebrow">Logg</div>
+      <h2>Alla fångster</h2>
+      <div class="filter-row" id="filterRow">
+        <button class="filter-chip active" data-filter="all">Alla</button>
+        <button class="filter-chip" data-filter="röding">Röding</button>
+        <button class="filter-chip" data-filter="lax">Lax</button>
+        <button class="filter-chip" data-filter="öring">Öring</button>
+      </div>
+      <div class="catches" id="catchesList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+  <div class="modal">
+    <div class="eyebrow">Redigera</div>
+    <h2 id="editModalTitle">Ändra fångst</h2>
+    <p class="modal-intro">Korrigera lag, art eller vikt om något blev fel vid invägningen.</p>
+    <div class="field">
+      <label for="editTeam">Lag</label>
+      <select id="editTeam"></select>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="editSpecies">Art</label>
+        <select id="editSpecies">
+          <option value="röding">Röding</option>
+          <option value="lax">Lax</option>
+          <option value="öring">Öring</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="editWeight">Vikt (g)</label>
+        <input type="number" id="editWeight" min="1" inputmode="numeric">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelEdit">Avbryt</button>
+      <button class="btn btn-brass" id="saveEdit">Spara ändring</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SPECIES = [
+  { key: 'röding', label: 'Röding' },
+  { key: 'lax', label: 'Lax' },
+  { key: 'öring', label: 'Öring' }
+];
+
+const STORAGE_KEY = 'fishing-tournament-v1';
+
+let state = { teams: [], catches: [] };
+let currentFilter = 'all';
+
+// --- Storage ---
+async function loadState() {
+  try {
+    const result = await window.storage.get(STORAGE_KEY);
+    if (result && result.value) {
+      const parsed = JSON.parse(result.value);
+      state = { teams: parsed.teams || [], catches: parsed.catches || [] };
+    }
+  } catch (e) {
+    // Key doesn't exist yet — use empty state
+  }
+}
+
+async function saveState() {
+  try {
+    await window.storage.set(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    toast('Kunde inte spara');
+  }
+}
+
+// --- Toast ---
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// --- Helpers ---
+function fmtNum(g) {
+  return g.toLocaleString('sv-SE');
+}
+
+function speciesLabel(key) {
+  return SPECIES.find(s => s.key === key)?.label || key;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+}
+
+// --- Tabs ---
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'panel-' + name);
+  });
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => switchTab(t.dataset.tab));
+});
+
+// --- Render ---
+function render() {
+  renderStats();
+  renderTabCounts();
+  renderTeams();
+  renderTeamSelect();
+  renderTrophies();
+  renderLeaderboard();
+  renderTeamSummary();
+  renderCatches();
+}
+
+function renderStats() {
+  document.getElementById('statTeams').textContent = state.teams.length;
+  document.getElementById('statCatches').textContent = state.catches.length;
+  const total = state.catches.reduce((sum, c) => sum + c.weight, 0);
+  document.getElementById('statTotal').textContent = fmtNum(total);
+}
+
+function renderTabCounts() {
+  document.getElementById('tabCountTeams').textContent = state.teams.length;
+  document.getElementById('tabCountCatches').textContent = state.catches.length;
+  document.getElementById('teamCountInline').textContent = '(' + state.teams.length + ')';
+}
+
+function renderTeams() {
+  const list = document.getElementById('teamList');
+  if (state.teams.length === 0) {
+    list.innerHTML = '<li style="font-size: 13px; color: var(--ink-muted); font-style: italic; list-style: none;">Inga lag tillagda än.</li>';
+    return;
+  }
+  const sorted = [...state.teams].sort((a, b) => a.localeCompare(b, 'sv'));
+  list.innerHTML = sorted.map(t => `
+    <li class="team-chip">
+      <span>${escapeHtml(t)}</span>
+      <button data-team="${escapeHtml(t)}" aria-label="Ta bort ${escapeHtml(t)}" title="Ta bort">×</button>
+    </li>
+  `).join('');
+  list.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => removeTeam(btn.dataset.team));
+  });
+}
+
+function renderTeamSelect() {
+  const sel = document.getElementById('catchTeam');
+  const current = sel.value;
+  const sorted = [...state.teams].sort((a, b) => a.localeCompare(b, 'sv'));
+  sel.innerHTML = '<option value="">Välj lag…</option>' +
+    sorted.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  if (state.teams.includes(current)) sel.value = current;
+}
+
+function renderTrophies() {
+  const container = document.getElementById('trophies');
+  container.innerHTML = SPECIES.map(sp => {
+    const catches = state.catches.filter(c => c.species === sp.key);
+    if (catches.length === 0) {
+      return `
+        <div class="trophy empty">
+          <div class="trophy-species">Störst ${sp.label.toLowerCase()}</div>
+          <div class="trophy-team">Ingen registrerad</div>
+          <div class="trophy-weight">—</div>
+        </div>`;
+    }
+    const winner = catches.reduce((a, b) => a.weight > b.weight ? a : b);
+    return `
+      <div class="trophy">
+        <div class="trophy-species">Störst ${sp.label.toLowerCase()}</div>
+        <div class="trophy-team">${escapeHtml(winner.team)}</div>
+        <div class="trophy-weight">${fmtNum(winner.weight)}<span class="unit">g</span></div>
+      </div>`;
+  }).join('');
+}
+
+function renderLeaderboard() {
+  const lb = document.getElementById('leaderboard');
+
+  const teamData = {};
+  state.teams.forEach(t => { teamData[t] = { total: 0, count: 0 }; });
+  state.catches.forEach(c => {
+    if (!teamData[c.team]) teamData[c.team] = { total: 0, count: 0 };
+    teamData[c.team].total += c.weight;
+    teamData[c.team].count += 1;
+  });
+
+  const rows = Object.entries(teamData)
+    .map(([team, d]) => ({ team, ...d }))
+    .sort((a, b) => b.total - a.total || a.team.localeCompare(b.team, 'sv'));
+
+  if (rows.length === 0) {
+    lb.innerHTML = '<div class="empty-state">Lägg till lag och registrera fångster för att se tabellen.</div>';
+    return;
+  }
+
+  lb.innerHTML = `
+    <div class="lb-row header">
+      <div>Plac</div>
+      <div>Lag</div>
+      <div style="text-align: right">Vikt</div>
+    </div>
+    ${rows.map((r, i) => `
+      <div class="lb-row ${i === 0 && r.total > 0 ? 'gold' : ''}">
+        <div class="lb-rank">${i + 1}</div>
+        <div>
+          <div class="lb-team">${escapeHtml(r.team)}</div>
+          <div class="lb-detail">${r.count} ${r.count === 1 ? 'fångst' : 'fångster'}</div>
+        </div>
+        <div class="lb-weight">${fmtNum(r.total)}<span class="unit">g</span></div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderTeamSummary() {
+  const container = document.getElementById('teamSummary');
+
+  // Aggregate per team
+  const teamData = {};
+  state.teams.forEach(t => {
+    teamData[t] = { total: 0, count: 0, biggest: { 'röding': null, 'lax': null, 'öring': null } };
+  });
+  state.catches.forEach(c => {
+    if (!teamData[c.team]) {
+      teamData[c.team] = { total: 0, count: 0, biggest: { 'röding': null, 'lax': null, 'öring': null } };
+    }
+    teamData[c.team].total += c.weight;
+    teamData[c.team].count += 1;
+    if (teamData[c.team].biggest[c.species] == null || c.weight > teamData[c.team].biggest[c.species]) {
+      teamData[c.team].biggest[c.species] = c.weight;
+    }
+  });
+
+  const rows = Object.entries(teamData)
+    .map(([team, d]) => ({ team, ...d }))
+    .sort((a, b) => b.total - a.total || a.team.localeCompare(b.team, 'sv'));
+
+  if (rows.length === 0) {
+    container.innerHTML = '<div class="empty-state">Lägg till lag och registrera fångster för att se sammanställningen.</div>';
+    return;
+  }
+
+  // Determine the overall winner per species
+  const winners = {};
+  SPECIES.forEach(sp => {
+    let max = 0, winnerTeam = null;
+    rows.forEach(r => {
+      if (r.biggest[sp.key] != null && r.biggest[sp.key] > max) {
+        max = r.biggest[sp.key];
+        winnerTeam = r.team;
+      }
+    });
+    winners[sp.key] = winnerTeam;
+  });
+
+  const cell = (val, isWinner) => {
+    if (val == null) return '<td class="num none">—</td>';
+    return '<td class="num ' + (isWinner ? 'winner-cell' : '') + '">' + fmtNum(val) + '<span class="unit">g</span></td>';
+  };
+
+  container.innerHTML =
+    '<div class="team-summary">' +
+      '<table>' +
+        '<thead>' +
+          '<tr>' +
+            '<th>Plac</th>' +
+            '<th>Lag</th>' +
+            '<th class="num">Röding</th>' +
+            '<th class="num">Lax</th>' +
+            '<th class="num">Öring</th>' +
+            '<th class="num">Totalt</th>' +
+          '</tr>' +
+        '</thead>' +
+        '<tbody>' +
+          rows.map((r, i) =>
+            '<tr class="' + (i === 0 && r.total > 0 ? 'gold-row' : '') + '">' +
+              '<td class="rank-cell">' + (i + 1) + '</td>' +
+              '<td class="team-cell">' + escapeHtml(r.team) + '</td>' +
+              cell(r.biggest['röding'], winners['röding'] === r.team) +
+              cell(r.biggest['lax'], winners['lax'] === r.team) +
+              cell(r.biggest['öring'], winners['öring'] === r.team) +
+              '<td class="num total">' + fmtNum(r.total) + '<span class="unit">g</span></td>' +
+            '</tr>'
+          ).join('') +
+        '</tbody>' +
+      '</table>' +
+    '</div>';
+}
+
+function renderCatches() {
+  const list = document.getElementById('catchesList');
+  let filtered = state.catches;
+  if (currentFilter !== 'all') {
+    filtered = filtered.filter(c => c.species === currentFilter);
+  }
+  if (filtered.length === 0) {
+    list.innerHTML = state.catches.length === 0
+      ? '<div class="empty-state">Inga fångster registrerade än.</div>'
+      : '<div class="empty-state">Inga fångster i den här arten.</div>';
+    return;
+  }
+  const sorted = [...filtered].sort((a, b) => (b.time || 0) - (a.time || 0));
+  list.innerHTML = sorted.map(c => `
+    <div class="catch-row">
+      <div>
+        <div class="catch-team">${escapeHtml(c.team)}</div>
+        <div class="catch-meta">${c.time ? new Date(c.time).toLocaleDateString('sv-SE') : ''}</div>
+      </div>
+      <div class="catch-species-tag">${escapeHtml(speciesLabel(c.species))}</div>
+      <div class="catch-weight">${fmtNum(c.weight)}<span class="unit">g</span></div>
+      <div class="catch-actions">
+        <button class="catch-edit" data-id="${c.id}" aria-label="Ändra fångst" title="Ändra">✎</button>
+        <button class="catch-delete" data-id="${c.id}" aria-label="Ta bort fångst" title="Ta bort">×</button>
+      </div>
+    </div>
+  `).join('');
+  list.querySelectorAll('.catch-edit').forEach(btn => {
+    btn.addEventListener('click', () => openEditModal(btn.dataset.id));
+  });
+  list.querySelectorAll('.catch-delete').forEach(btn => {
+    btn.addEventListener('click', () => removeCatch(btn.dataset.id));
+  });
+}
+
+// --- Filter chips ---
+document.querySelectorAll('.filter-chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentFilter = btn.dataset.filter;
+    document.querySelectorAll('.filter-chip').forEach(b =>
+      b.classList.toggle('active', b.dataset.filter === currentFilter));
+    renderCatches();
+  });
+});
+
+// --- Actions ---
+async function addTeam() {
+  const input = document.getElementById('teamName');
+  const name = input.value.trim();
+  if (!name) { toast('Skriv ett lagnamn'); input.focus(); return; }
+  if (state.teams.some(t => t.toLowerCase() === name.toLowerCase())) {
+    toast(name + ' finns redan');
+    return;
+  }
+  state.teams.push(name);
+  input.value = '';
+  await saveState();
+  render();
+  toast(name + ' tillagt');
+  input.focus();
+}
+
+async function removeTeam(name) {
+  const catchCount = state.catches.filter(c => c.team === name).length;
+  const msg = catchCount > 0
+    ? 'Ta bort ' + name + '? Lagets ' + catchCount + ' fångst' + (catchCount === 1 ? '' : 'er') + ' tas också bort.'
+    : 'Ta bort ' + name + '?';
+  if (!confirm(msg)) return;
+  state.teams = state.teams.filter(t => t !== name);
+  state.catches = state.catches.filter(c => c.team !== name);
+  await saveState();
+  render();
+}
+
+async function addCatch() {
+  const team = document.getElementById('catchTeam').value;
+  const species = document.getElementById('catchSpecies').value;
+  const weightEl = document.getElementById('catchWeight');
+  const weight = parseInt(weightEl.value, 10);
+
+  if (!team) {
+    if (state.teams.length === 0) {
+      toast('Lägg till lag i Lag-fliken först');
+    } else {
+      toast('Välj ett lag');
+    }
+    return;
+  }
+  if (!weight || weight <= 0) { toast('Ange vikt i gram'); weightEl.focus(); return; }
+
+  state.catches.push({
+    id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+    team, species, weight,
+    time: Date.now()
+  });
+  weightEl.value = '';
+  await saveState();
+  render();
+  toast(speciesLabel(species) + ' ' + fmtNum(weight) + ' g – ' + team);
+
+  // Show last catch hint
+  const hint = document.getElementById('lastCatchHint');
+  hint.textContent = 'Senaste invägning: ' + team + ' · ' + speciesLabel(species) + ' · ' + fmtNum(weight) + ' g';
+  hint.style.display = 'block';
+
+  weightEl.focus();
+}
+
+async function removeCatch(id) {
+  state.catches = state.catches.filter(c => c.id !== id);
+  await saveState();
+  render();
+}
+
+// --- Edit catch ---
+let editingId = null;
+
+function openEditModal(id) {
+  const c = state.catches.find(x => x.id === id);
+  if (!c) return;
+  editingId = id;
+
+  const teamSel = document.getElementById('editTeam');
+  const sortedTeams = [...state.teams].sort((a, b) => a.localeCompare(b, 'sv'));
+  teamSel.innerHTML = sortedTeams.map(t =>
+    '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>'
+  ).join('');
+  teamSel.value = c.team;
+
+  document.getElementById('editSpecies').value = c.species;
+  document.getElementById('editWeight').value = c.weight;
+
+  document.getElementById('editModal').classList.add('show');
+  setTimeout(() => document.getElementById('editWeight').focus(), 50);
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('show');
+  editingId = null;
+}
+
+async function saveEdit() {
+  if (!editingId) return;
+  const team = document.getElementById('editTeam').value;
+  const species = document.getElementById('editSpecies').value;
+  const weight = parseInt(document.getElementById('editWeight').value, 10);
+
+  if (!team) { toast('Välj ett lag'); return; }
+  if (!weight || weight <= 0) { toast('Ange vikt i gram'); return; }
+
+  const catchObj = state.catches.find(c => c.id === editingId);
+  if (catchObj) {
+    catchObj.team = team;
+    catchObj.species = species;
+    catchObj.weight = weight;
+  }
+
+  await saveState();
+  closeEditModal();
+  render();
+  toast('Ändring sparad');
+}
+
+async function resetAll() {
+  if (!confirm('Nollställ alla lag och fångster? Detta går inte att ångra.')) return;
+  state = { teams: [], catches: [] };
+  await saveState();
+  render();
+  document.getElementById('lastCatchHint').style.display = 'none';
+  toast('Allt nollställt');
+}
+
+async function loadDemo() {
+  if (state.teams.length > 0 || state.catches.length > 0) {
+    if (!confirm('Detta ersätter all nuvarande data med junihugget-resultaten. Fortsätt?')) return;
+  }
+  state = buildDemoData();
+  await saveState();
+  render();
+  toast('Junihugget-data inladdad');
+}
+
+function buildDemoData() {
+  const teams = [
+    'Senga','Jennie','Löjfeber','Jangeby','Dorotea','Backman','Texas',
+    'Gunnarsson','Black pearl','Rc','Stenvall','Kajo','Utterjägarna',
+    'Karlsson','Duncan','Larsson','Röding pärlan'
+  ];
+  const raw = [
+    ['Kajo','röding',2788],['Jennie','röding',2784],['Gunnarsson','röding',2542],
+    ['Utterjägarna','röding',1880],['Senga','röding',1808],['Backman','röding',1708],
+    ['Karlsson','röding',1620],['Dorotea','röding',1608],['Dorotea','röding',1570],
+    ['Stenvall','röding',1528],['Stenvall','röding',1508],['Duncan','röding',1376],
+    ['Dorotea','röding',1358],['Rc','röding',1216],
+    ['Senga','lax',4730],['Löjfeber','lax',3368],['Backman','lax',3258],
+    ['Jangeby','lax',3142],['Texas','lax',3018],['Löjfeber','lax',2760],
+    ['Jangeby','lax',2590],['Rc','lax',2516],['Black pearl','lax',2488],
+    ['Backman','lax',2368],['Jennie','lax',2350],['Jennie','lax',2220],
+    ['Dorotea','öring',3330],['Jangeby','öring',2536],['Jennie','öring',2250],
+    ['Larsson','öring',2215],['Löjfeber','öring',1942],['Gunnarsson','öring',1850],
+    ['Röding pärlan','öring',1734],['Texas','öring',1692],['Black pearl','öring',1686],
+    ['Löjfeber','öring',1560]
+  ];
+  const now = Date.now();
+  const catches = raw.map((r, i) => ({
+    id: 'demo_' + i,
+    team: r[0], species: r[1], weight: r[2],
+    time: now - (raw.length - i) * 60000
+  }));
+  return { teams, catches };
+}
+
+// --- Wire up ---
+document.getElementById('addTeam').addEventListener('click', addTeam);
+document.getElementById('teamName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addTeam();
+});
+document.getElementById('addCatch').addEventListener('click', addCatch);
+document.getElementById('catchWeight').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addCatch();
+});
+document.getElementById('resetAll').addEventListener('click', resetAll);
+document.getElementById('loadDemo').addEventListener('click', loadDemo);
+
+// Modal handlers
+document.getElementById('saveEdit').addEventListener('click', saveEdit);
+document.getElementById('cancelEdit').addEventListener('click', closeEditModal);
+document.getElementById('editModal').addEventListener('click', e => {
+  if (e.target.id === 'editModal') closeEditModal();
+});
+document.getElementById('editWeight').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveEdit();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('editModal').classList.contains('show')) {
+    closeEditModal();
+  }
+});
+
+// --- Init ---
+(async () => {
+  await loadState();
+  render();
+})();
+</script>
+</body>
+</html>
