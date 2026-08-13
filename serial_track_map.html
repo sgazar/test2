@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>SailMon Track</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<style>
+  html, body { margin:0; padding:0; height:100%; font-family: -apple-system, Segoe UI, Roboto, sans-serif; }
+  #map { position:absolute; top:0; bottom:40px; left:0; right:0; }
+  #legend {
+    position:absolute; bottom:0; left:0; right:0; height:40px;
+    background:#111; color:#eee; display:flex; align-items:center;
+    padding:0 12px; font-size:13px; gap:14px; box-sizing:border-box;
+  }
+  #legend .bar {
+    flex:1; height:10px; border-radius:5px;
+    background: linear-gradient(to right, #2c7bb6, #ffffbf, #d7191c);
+  }
+  #legend button {
+    background:#222; color:#eee; border:1px solid #444; border-radius:4px;
+    padding:4px 10px; font-size:12px; cursor:pointer;
+  }
+  #legend button:hover { background:#333; }
+  #dropzone {
+    position:absolute; top:0; bottom:40px; left:0; right:0;
+    display:flex; align-items:center; justify-content:center;
+    background:#f4f4f2; z-index:10;
+  }
+  #dropzone.hidden { display:none; }
+  #dropbox {
+    border:2px dashed #999; border-radius:12px; padding:40px 56px;
+    text-align:center; color:#555; background:#fff;
+  }
+  #dropbox.drag { border-color:#2c7bb6; background:#eaf3fb; }
+  #dropbox p { margin:8px 0; font-size:14px; }
+  #dropbox input { display:none; }
+  #dropbox label {
+    display:inline-block; margin-top:8px; padding:8px 16px;
+    background:#2c7bb6; color:#fff; border-radius:6px; cursor:pointer; font-size:13px;
+  }
+  #dropbox label:hover { background:#256a9c; }
+  #err { color:#c0392b; font-size:12px; margin-top:10px; display:none; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="dropzone">
+  <div id="dropbox">
+    <p><strong>Load a SailMon log file</strong></p>
+    <p>Drag &amp; drop a .txt/.log file here, or</p>
+    <label for="fileInput">Choose file</label>
+    <input type="file" id="fileInput" accept=".txt,.log,.csv" />
+    <p id="err"></p>
+  </div>
+</div>
+
+<div id="legend">
+  <span>Speed (knots):</span>
+  <span>0</span>
+  <div class="bar"></div>
+  <span id="maxspeed">-</span>
+  <span id="summary" style="margin-left:auto;opacity:0.7"></span>
+  <button id="loadNew">Load another file</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+let map = null;
+let layerGroup = null;
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180;
+  const dphi = (lat2-lat1) * Math.PI/180;
+  const dlmb = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(dphi/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dlmb/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+
+// Parses SailMon-style log lines. Supports two formats:
+//  1) "HH:MM:SS.mmm lat;lon;course;gpscourse;speed;sats;hdop;sentencesWithFix"
+//  2) "lat;lon;course;gpscourse;speed;sats;hdop" (no timestamp, 7 fields)
+function parseLog(text) {
+  const lines = text.split(/\r?\n/);
+  const rows = [];
+  let syntheticIndex = 0;
+  const tsRe = /^(\d{2}:\d{2}:\d{2}\.\d{3})\s+(.*)$/;
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    let ts = null;
+    let rest = line;
+    const m = line.match(tsRe);
+    if (m) {
+      ts = m[1];
+      rest = m[2];
+    }
+
+    const parts = rest.split(';');
+    if (parts.length !== 7 && parts.length !== 8) continue;
+
+    const lat = parseFloat(parts[0]);
+    const lon = parseFloat(parts[1]);
+    const course = parseFloat(parts[2]);
+    const gpscourse = parseFloat(parts[3]);
+    const speed = parseFloat(parts[4]);
+    const sats = parseInt(parts[5], 10);
+    const hdop = parseFloat(parts[6]);
+    const swf = parts.length === 8 ? parseInt(parts[7], 10) : null;
+
+    if ([lat, lon, course, gpscourse, speed, hdop].some(v => Number.isNaN(v)) || Number.isNaN(sats)) {
+      continue;
+    }
+
+    rows.push({
+      ts: ts || `#${syntheticIndex}`,
+      lat, lon, course, gpscourse, speed_kn: speed,
+      sats, hdop, swf
+    });
+    syntheticIndex++;
+  }
+  return rows;
+}
+
+function speedColorFactory(maxSpeed) {
+  return function(s) {
+    const t = Math.max(0, Math.min(1, s / (maxSpeed || 1)));
+    if (t < 0.5) {
+      const u = t / 0.5;
+      const r = Math.round(44 + u * (255-44));
+      const g = Math.round(123 + u * (255-123));
+      const b = Math.round(182 + u * (191-182));
+      return `rgb(${r},${g},${b})`;
+    } else {
+      const u = (t - 0.5) / 0.5;
+      const r = Math.round(255 + u * (215-255));
+      const g = Math.round(255 + u * (25-255));
+      const b = Math.round(191 + u * (28-191));
+      return `rgb(${r},${g},${b})`;
+    }
+  };
+}
+
+function renderTrack(track) {
+  const errEl = document.getElementById('err');
+  if (!track.length) {
+    errEl.textContent = 'No valid data rows found in this file.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  document.getElementById('dropzone').classList.add('hidden');
+
+  if (!map) {
+    map = L.map('map', { zoomControl: true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 22,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+  }
+  if (layerGroup) {
+    layerGroup.remove();
+  }
+  layerGroup = L.layerGroup().addTo(map);
+
+  const maxSpeed = Math.max(...track.map(p => p.speed_kn));
+  const speedColor = speedColorFactory(maxSpeed);
+  document.getElementById('maxspeed').textContent = maxSpeed.toFixed(2);
+
+  const latlngs = track.map(p => [p.lat, p.lon]);
+  map.fitBounds(latlngs, { padding: [30,30] });
+
+  let totalDist = 0;
+  for (let i = 1; i < track.length; i++) {
+    const d = haversine(track[i-1].lat, track[i-1].lon, track[i].lat, track[i].lon);
+    totalDist += d;
+    L.polyline([[track[i-1].lat, track[i-1].lon], [track[i].lat, track[i].lon]], {
+      color: speedColor(track[i].speed_kn),
+      weight: 4,
+      opacity: 0.85
+    }).addTo(layerGroup);
+  }
+
+  const start = track[0];
+  const end = track[track.length - 1];
+
+  L.circleMarker([start.lat, start.lon], {
+    radius: 7, color: '#111', fillColor: '#2ecc71', fillOpacity: 1, weight: 2
+  }).addTo(layerGroup).bindPopup(`<b>Start</b><br>${start.ts}<br>Sats: ${start.sats} HDOP: ${start.hdop}`);
+
+  L.circleMarker([end.lat, end.lon], {
+    radius: 7, color: '#111', fillColor: '#e74c3c', fillOpacity: 1, weight: 2
+  }).addTo(layerGroup).bindPopup(`<b>End</b><br>${end.ts}<br>Sats: ${end.sats} HDOP: ${end.hdop}`);
+
+  const step = Math.max(1, Math.floor(track.length / 60));
+  for (let i = 0; i < track.length; i += step) {
+    const p = track[i];
+    L.circleMarker([p.lat, p.lon], {
+      radius: 2.5, color: speedColor(p.speed_kn), fillOpacity: 0.9, weight: 0
+    }).addTo(layerGroup).bindTooltip(
+      `${p.ts}<br>speed: ${p.speed_kn.toFixed(2)} kn<br>course: ${p.course.toFixed(1)}&deg;<br>sats: ${p.sats} hdop: ${p.hdop}`,
+      { sticky: true }
+    );
+  }
+
+  document.getElementById('summary').textContent =
+    `${track.length} points, ${totalDist.toFixed(1)} m track`;
+}
+
+function handleFile(file) {
+  const errEl = document.getElementById('err');
+  errEl.style.display = 'none';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const track = parseLog(e.target.result);
+      renderTrack(track);
+    } catch (err) {
+      errEl.textContent = 'Could not parse this file: ' + err.message;
+      errEl.style.display = 'block';
+    }
+  };
+  reader.onerror = () => {
+    errEl.textContent = 'Could not read this file.';
+    errEl.style.display = 'block';
+  };
+  reader.readAsText(file);
+}
+
+const fileInput = document.getElementById('fileInput');
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+const dropbox = document.getElementById('dropbox');
+dropbox.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropbox.classList.add('drag');
+});
+dropbox.addEventListener('dragleave', () => {
+  dropbox.classList.remove('drag');
+});
+dropbox.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropbox.classList.remove('drag');
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+document.getElementById('loadNew').addEventListener('click', () => {
+  document.getElementById('dropzone').classList.remove('hidden');
+  fileInput.value = '';
+});
+</script>
+</body>
+</html>
