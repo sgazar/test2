@@ -220,6 +220,29 @@
   .legend-bar { width: 100%; height: 8px; border-radius: 4px; display: block; margin-bottom: 4px; }
   .legend-ticks { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); font-family: 'DM Mono', monospace; }
 
+  /* Color-mode toggle */
+  .mode-toggle { display: flex; gap: 6px; margin-bottom: .65rem; }
+  .mode-btn {
+    flex: 1; padding: 5px 0; border-radius: 6px;
+    border: 1.5px solid var(--border2); background: var(--surface2);
+    color: var(--text2); font-size: 11px; font-weight: 500; cursor: pointer;
+    font-family: var(--font); transition: background .12s, color .12s, border-color .12s;
+  }
+  .mode-btn:hover { border-color: var(--accent); }
+  .mode-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .track-legend-row { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--text2); padding: 5px 0; border-bottom: 0.5px solid var(--border); }
+  .track-legend-row:last-child { border-bottom: none; }
+  .track-legend-top { display: flex; align-items: center; gap: 7px; }
+  .track-legend-row .swatch { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .track-legend-detail { font-size: 10px; color: var(--text3); font-family: 'DM Mono', monospace; margin-left: 17px; }
+  .kb-hint { font-size: 10px; color: var(--text3); font-family: 'DM Mono', monospace; text-align: center; margin-top: 8px; display: none; }
+  .kb-hint.show { display: block; }
+  .kb-hint kbd {
+    display: inline-block; padding: 1px 5px; border-radius: 4px;
+    border: 0.5px solid var(--border2); background: var(--surface2);
+    font-family: 'DM Mono', monospace; font-size: 10px;
+  }
+
   /* Tabs */
   .tabs { display: flex; border-bottom: 0.5px solid var(--border); margin-bottom: .75rem; }
   .tab {
@@ -324,13 +347,21 @@
           </div>
         </div>
 
-        <!-- Colormap -->
+        <!-- Colormap / track colors -->
         <div class="card">
-          <div class="card-title">Speed colormap</div>
-          <canvas id="lc" class="legend-bar" height="8"></canvas>
-          <div class="legend-ticks">
-            <span id="l0">0</span><span id="l1"></span><span id="l2">0</span>
+          <div class="card-title">Color by</div>
+          <div class="mode-toggle" id="modeToggle">
+            <button type="button" class="mode-btn" data-mode="speed">Speed</button>
+            <button type="button" class="mode-btn" data-mode="track">Track</button>
           </div>
+          <div id="speedLegend">
+            <canvas id="lc" class="legend-bar" height="8"></canvas>
+            <div class="legend-ticks">
+              <span id="l0">0</span><span id="l1"></span><span id="l2">0</span>
+            </div>
+          </div>
+          <div id="trackLegend" style="display:none"></div>
+          <div class="kb-hint" id="kbHint"><kbd>←</kbd> <kbd>→</kbd> move playhead from start · hold <kbd>Shift</kbd> to jump faster</div>
         </div>
 
         <!-- Charts -->
@@ -371,6 +402,25 @@ function rc(n){
   const t=n*(s.length-1),i=Math.floor(t),f=t-i;
   const a=s[Math.min(i,s.length-1)],b=s[Math.min(i+1,s.length-1)];
   return`rgb(${Math.round((a[0]*(1-f)+b[0]*f)*255)},${Math.round((a[1]*(1-f)+b[1]*f)*255)},${Math.round((a[2]*(1-f)+b[2]*f)*255)})`;
+}
+
+/* ── compass heading (great-circle bearing) ── */
+const COMPASS16=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+function bearingDeg(lat1,lon1,lat2,lon2){
+  const toRad=d=>d*Math.PI/180;
+  const φ1=toRad(lat1),φ2=toRad(lat2),Δλ=toRad(lon2-lon1);
+  const y=Math.sin(Δλ)*Math.cos(φ2);
+  const x=Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+  return(Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+function compassAbbr(deg){ return COMPASS16[Math.round(deg/22.5)%16]; }
+// heading of travel at point idx within a track, using the neighbouring points
+function headingAt(track,idx){
+  const pts=track.pts;
+  const i0=Math.max(0,idx-1),i1=Math.min(pts.length-1,idx+1);
+  const a=pts[i0],b=pts[i1];
+  if(!a||!b||a.lat==null||b.lat==null||(a.lat===b.lat&&a.lon===b.lon)) return null;
+  return bearingDeg(a.lat,a.lon,b.lat,b.lon);
 }
 
 /* ── UTM projection (WGS84) ── */
@@ -471,6 +521,9 @@ let zoom=1,panX=0,panY=0; // map zoom & pan (in canvas pixels)
 let dragging=false,dragStartX=0,dragStartY=0,dragPanX0=0,dragPanY0=0;
 let selectedPoints=[]; // for distance measurement
 let measurementBadgePos={x:0,y:0}; // position of measurement badge
+let userColorMode=null; // null = auto (speed for 1 track, track colors for 2+); else 'speed'|'track'
+function colorMode(){return userColorMode||(tracks.length>1?'track':'speed');}
+let playElapsed=0; // seconds forward from the filter window's start time — same absolute instant looked up on every track
 
 function reGlobals(){
   gx0=gy0=Infinity;gx1=gy1=-Infinity;gs0=Infinity;gs1=-Infinity;
@@ -559,6 +612,7 @@ function draw(){
     return [bx*zoom+panX, by*zoom+panY];
   };
   const sr=gs1-gs0||1;
+  const mode=colorMode();
   // clip to canvas bounds when zoomed
   cx.save();cx.beginPath();cx.rect(0,0,W,H);cx.clip();
 
@@ -572,7 +626,7 @@ function draw(){
       if(p.spd!==null&&(p.spd<slo||p.spd>shi)) continue;
       const [x1,y1]=tc(pp.x,pp.y),[x2,y2]=tc(p.x,p.y);
       cx.beginPath();cx.moveTo(x1,y1);cx.lineTo(x2,y2);
-      cx.strokeStyle=p.spd!==null?rc((p.spd-gs0)/sr):t.color;
+      cx.strokeStyle=mode==='track'?t.color:(p.spd!==null?rc((p.spd-gs0)/sr):t.color);
       cx.lineWidth=2.5;cx.stroke();
       lastEndpoint=p;
     }
@@ -602,6 +656,20 @@ function draw(){
     cx.fillText(i+1,spx,spy);
   }
 
+  // Playhead markers: same absolute timestamp (offset from the filter Start) on every visible track
+  if(mode==='track'){
+    playElapsed=Math.max(0,Math.min(windowSeconds(),playElapsed));
+    for(const t of tracks){
+      if(!vis.has(t.id)) continue;
+      const p=pointAtElapsed(t,playElapsed);
+      if(!p) continue;
+      const [px,py]=tc(p.x,p.y);
+      cx.beginPath();cx.arc(px,py,9,0,Math.PI*2);
+      cx.strokeStyle='rgba(255,255,255,.9)';cx.lineWidth=2;cx.stroke();
+      cx.beginPath();cx.arc(px,py,6,0,Math.PI*2);cx.fillStyle=t.color;cx.fill();
+    }
+  }
+
   if(hov){
     const [hx,hy]=tc(hov.x,hov.y);
     cx.beginPath();cx.arc(hx,hy,10,0,Math.PI*2);
@@ -620,7 +688,7 @@ function draw(){
     measurementBadgePos={x:midX,y:midY};
   }
   
-  drawLeg();
+  updateColorModeUI();
 }
 
 function drawLeg(){
@@ -633,6 +701,145 @@ function drawLeg(){
   document.getElementById('l1').textContent=((gs0+gs1)/2).toFixed(1)+' kn';
   document.getElementById('l2').textContent=gs1.toFixed(1)+' kn';
 }
+
+/* ── color-mode toggle & track legend ── */
+function updateColorModeUI(){
+  const mode=colorMode();
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode));
+  document.getElementById('speedLegend').style.display=mode==='speed'?'block':'none';
+  document.getElementById('trackLegend').style.display=mode==='track'?'block':'none';
+  document.getElementById('kbHint').classList.toggle('show',mode==='track');
+  if(mode==='speed') drawLeg();
+  else renderTrackLegend();
+}
+
+function fmtClock(sec){
+  if(!isFinite(sec)||sec<0) sec=0;
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=Math.floor(sec%60);
+  return (h>0?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+
+function renderTrackLegend(){
+  const el=document.getElementById('trackLegend');el.innerHTML='';
+  const visTracks=tracks.filter(t=>vis.has(t.id));
+  if(!visTracks.length){el.innerHTML='<div class="track-legend-row" style="color:var(--text3)">No tracks visible</div>';return;}
+
+  const head=document.createElement('div');
+  head.style.cssText="font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:var(--text);margin-bottom:5px;";
+  head.textContent=fmtTs(winToMs(wstart)+playElapsed*1000)+'  (T+'+fmtClock(playElapsed)+' from start filter)';
+  el.appendChild(head);
+
+  const targetTs=winToMs(wstart)+playElapsed*1000;
+  const infos=visTracks.map(t=>{
+    const idx=pointIdxAtTs(t,targetTs);
+    const p=idx>=0?t.pts[idx]:null;
+    return{t,idx,p};
+  });
+  let leadDist=null;
+  for(const{p}of infos){ if(p&&p.dist!=null&&(leadDist===null||p.dist>leadDist)) leadDist=p.dist; }
+
+  for(const{t,idx,p}of infos){
+    const row=document.createElement('div');row.className='track-legend-row';
+    const top=document.createElement('div');top.className='track-legend-top';
+    const sw=document.createElement('span');sw.className='swatch';sw.style.background=t.color;
+    const nm=document.createElement('span');nm.style.flex='1';nm.textContent=t.name;
+    top.appendChild(sw);top.appendChild(nm);
+    const info=document.createElement('span');
+    info.style.cssText="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);white-space:nowrap;";
+    if(p){
+      let txt=(p.spd!=null?p.spd.toFixed(1)+'kn':'—');
+      if(p.dist!=null&&leadDist!=null){
+        const gap=leadDist-p.dist;
+        if(gap>1) txt+=' · −'+(gap>=1000?(gap/1000).toFixed(2)+'km':Math.round(gap)+'m');
+        else if(leadDist>1) txt+=' · lead';
+      }
+      info.textContent=txt;
+    } else info.textContent='no data';
+    top.appendChild(info);
+    row.appendChild(top);
+
+    // distance traveled from the filter Start to this timestamp, and heading at this timestamp
+    const detail=document.createElement('div');detail.className='track-legend-detail';
+    let distTxt='—',hdgTxt='—';
+    if(p&&idx>=0){
+      const startIdx=pointIdxAtTs(t,winToMs(wstart));
+      const d=pathDistanceBetween(t,startIdx,idx);
+      if(d!==null) distTxt=d>=1000?(d/1000).toFixed(2)+' km':Math.round(d)+' m';
+      const hdg=headingAt(t,idx);
+      if(hdg!==null) hdgTxt=Math.round(hdg)+'° '+compassAbbr(hdg);
+    }
+    detail.textContent='Dist since start: '+distTxt+' · Heading: '+hdgTxt;
+    row.appendChild(detail);
+
+    el.appendChild(row);
+  }
+}
+
+document.querySelectorAll('.mode-btn').forEach(b=>{
+  b.onclick=()=>{userColorMode=b.dataset.mode;draw();};
+});
+
+/* ── playhead helpers: playElapsed is seconds forward from the filter "Start" slider.
+   The SAME absolute timestamp (winToMs(wstart)+playElapsed) is looked up on every track,
+   so two tracks recorded at the same real time land on directly comparable points. ── */
+function windowSeconds(){
+  return Math.max(1,(winToMs(wend)-winToMs(wstart))/1000);
+}
+// index of the last point in pts with ts <= targetTs (binary search; pts assumed ts-ascending)
+function idxAtOrBefore(pts,targetTs){
+  let lo=0,hi=pts.length-1,idx=-1;
+  while(lo<=hi){
+    const mid=(lo+hi)>>1;
+    if(pts[mid].ts!==null&&pts[mid].ts<=targetTs){idx=mid;lo=mid+1;} else hi=mid-1;
+  }
+  return idx;
+}
+// index of the point nearest targetTs (used so distance/heading lookups share the exact point drawn as the marker)
+function pointIdxAtTs(t,targetTs){
+  const pts=t.pts;
+  if(!pts.length) return -1;
+  const idx=idxAtOrBefore(pts,targetTs);
+  if(idx===-1) return pts.findIndex(p=>p.ts!==null);
+  if(idx>=pts.length-1) return idx;
+  const a=pts[idx],b=pts[idx+1];
+  if(a.ts===null) return idx+1;
+  if(b.ts===null) return idx;
+  return(Math.abs(a.ts-targetTs)<=Math.abs(b.ts-targetTs))?idx:idx+1;
+}
+function pointAtTs(t,targetTs){
+  const idx=pointIdxAtTs(t,targetTs);
+  return idx>=0?t.pts[idx]:null;
+}
+function pointAtElapsed(t,elapsed){
+  return pointAtTs(t,winToMs(wstart)+elapsed*1000);
+}
+// sums GPS segment lengths between two point indices — used instead of the FIT "distance"
+// field, since that field can be null or reset to 0 on a lap/session boundary mid-recording
+function pathDistanceBetween(t,i0,i1){
+  if(i0<0||i1<0) return null;
+  if(i0>i1){const tmp=i0;i0=i1;i1=tmp;}
+  let d=0;
+  for(let i=i0;i<i1;i++){
+    const a=t.pts[i],b=t.pts[i+1];
+    d+=Math.hypot(b.x-a.x,b.y-a.y);
+  }
+  return d;
+}
+
+/* ── keyboard scrub (track view): moves a shared playhead forward/back from the filter
+   start time — the same absolute instant is shown on every track, for direct comparison ── */
+window.addEventListener('keydown',e=>{
+  if(!tracks.length) return;
+  if(colorMode()!=='track') return; // scrubbing only active in track-color compare view
+  if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight') return;
+  const tag=(document.activeElement&&document.activeElement.tagName)||'';
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
+  e.preventDefault();
+  const m=windowSeconds();
+  const step=Math.max(1,m*0.005)*(e.shiftKey?6:1);
+  playElapsed=Math.max(0,Math.min(m,playElapsed+(e.key==='ArrowRight'?step:-step)));
+  draw();
+});
 
 /* ── stats ── */
 function updateStats(){
@@ -739,10 +946,11 @@ function addTrack(name,buf){
   document.getElementById('main').style.display='block';
   document.getElementById('empty').style.display='none';
   document.getElementById('dz').classList.add('compact');
-  // reset window & zoom to full range when adding a new track
+  // reset window, zoom & playhead to full range when adding a new track
   wstart=0;wend=1;
   wsEl.value=0;weEl.value=1000;
   zoom=1;panX=0;panY=0;updateZoomBadge();
+  playElapsed=0;
   render();
 }
 
@@ -791,6 +999,7 @@ const wsEl=document.getElementById('wstart'),weEl=document.getElementById('wend'
 wsEl.oninput=function(){
   wstart=+this.value/1000;
   if(wstart>wend){wstart=wend;this.value=Math.round(wstart*1000);}
+  playElapsed=0; // re-anchor the playhead to the new filter start
   render();
 };
 weEl.oninput=function(){
@@ -902,7 +1111,9 @@ cv.addEventListener('mousemove',e=>{
     hov=best;
     const spd=best.spd!==null?best.spd.toFixed(2)+' kn':'—';
     const ts=best.ts?new Date(best.ts).toLocaleTimeString():'';
+    const hdg=headingAt(tracks[best.trackIdx],best.pointIdx);
     tip.innerHTML=`<strong>${best.name}</strong><br>Speed: ${spd}`
+      +(hdg!==null?`<br>Heading: ${Math.round(hdg)}° ${compassAbbr(hdg)}`:'')
       +(best.hr?`<br>HR: ${best.hr} bpm`:'')
       +(best.alt!==null?`<br>Alt: ${Math.round(best.alt)} m`:'')
       +(ts?`<br>${ts}`:'');
