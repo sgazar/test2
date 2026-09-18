@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -274,15 +275,15 @@
 <header>
   <i class="ti ti-sail"></i>
   <h1>FIT Sailing Tracker</h1>
-  <span>— drag &amp; drop .fit files to begin</span>
+  <span>— drag &amp; drop .fit or .zip files to begin</span>
 </header>
 
 <div class="container">
   <div class="drop-zone" id="dz">
-    <input type="file" id="fi" multiple accept=".fit">
+    <input type="file" id="fi" multiple accept=".fit,.zip,application/zip,application/x-zip-compressed">
     <i class="ti ti-upload"></i>
-    <strong>Drop .fit files here</strong>
-    <p>Click to select — multiple files supported, compared side by side</p>
+    <strong>Drop .fit or .zip files here</strong>
+    <p>Click to select — multiple files supported, compared side by side · .zip archives are unpacked automatically</p>
   </div>
 
   <div class="chips" id="chips"></div>
@@ -988,9 +989,41 @@ dz.ondrop=e=>{e.preventDefault();dz.classList.remove('over');load(e.dataTransfer
 fi.onchange=()=>{load(fi.files);fi.value='';};
 function load(files){
   for(const f of files){
+    if(/\.zip$/i.test(f.name)){
+      loadZip(f);
+      continue;
+    }
     const r=new FileReader();
     r.onload=e=>addTrack(f.name.replace(/\.fit$/i,''),e.target.result);
+    r.onerror=()=>alert('Could not read '+f.name);
     r.readAsArrayBuffer(f);
+  }
+}
+
+async function loadZip(f){
+  if(typeof JSZip==='undefined'){alert('Zip support failed to load — check your connection and reload.');return;}
+  let zip;
+  try{
+    const buf=await f.arrayBuffer();
+    zip=await JSZip.loadAsync(buf);
+  }catch(e){
+    alert('Cannot open '+f.name+' as a zip file:\n'+e.message);
+    return;
+  }
+  const entries=Object.values(zip.files).filter(z=>!z.dir&&/\.fit$/i.test(z.name));
+  if(!entries.length){
+    alert('No .fit files found inside '+f.name);
+    return;
+  }
+  for(const entry of entries){
+    try{
+      const buf=await entry.async('arraybuffer');
+      // use just the inner file's base name (strip any folder path from within the zip)
+      const base=entry.name.split('/').pop().replace(/\.fit$/i,'');
+      addTrack(base,buf);
+    }catch(e){
+      alert('Cannot extract '+entry.name+' from '+f.name+':\n'+e.message);
+    }
   }
 }
 
